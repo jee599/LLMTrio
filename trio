@@ -5,7 +5,7 @@ export TRIO_DIR="$SCRIPT_DIR/.trio"
 
 mkdir -p "$TRIO_DIR/pids" "$TRIO_DIR/commands" "$TRIO_DIR/results"
 
-case "${1:-help}" in
+case "${1:-dashboard}" in
   start)
     shift
     bash "$SCRIPT_DIR/scripts/command-watcher.sh" &

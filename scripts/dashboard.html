@@ -1311,8 +1311,8 @@
       </p>
 
       <!-- Claude -->
-      <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div class="setup-provider-card" id="setupCardClaude" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <div class="agent-icon claude" style="width:32px;height:32px;font-size:15px;">C</div>
           <div style="flex:1;">
             <div style="font-weight:600;">Claude (Anthropic)</div>
@@ -1320,19 +1320,32 @@
           </div>
           <span class="status-badge pending" id="setupClaudeBadge">...</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-          <span style="font-size:11px;color:var(--text-secondary);min-width:60px;">API Key</span>
-          <input type="password" class="agent-prompt-input" id="setupClaudeKey" placeholder="sk-ant-..." style="flex:1;" />
-          <button class="btn btn-send" onclick="saveKey('anthropic','setupClaudeKey')">Save</button>
+        <!-- Step 1: Install -->
+        <div id="setupClaudeInstall" style="margin-bottom:10px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 1</span>
+            <button class="btn btn-send" onclick="installCli('claude')" id="setupClaudeInstallBtn" style="flex:none;">Install CLI</button>
+            <span style="font-size:11px;color:var(--text-muted);flex:1;" id="setupClaudeInstallMsg"></span>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);">
-          Or use CLI subscription: <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;">npm i -g @anthropic-ai/claude-code && claude login</code>
+        <!-- Step 2: Auth (API key OR CLI login) -->
+        <div id="setupClaudeAuth" style="margin-bottom:8px;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 2</span>
+            <input type="password" class="agent-prompt-input" id="setupClaudeKey" placeholder="sk-ant-..." style="flex:1;" />
+            <button class="btn btn-send" onclick="saveKey('anthropic','setupClaudeKey')">Save Key</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;padding-left:58px;">
+            <span style="font-size:11px;color:var(--text-muted);">or</span>
+            <button class="btn" onclick="cliLogin('claude')" id="setupClaudeLoginBtn" style="font-size:11px;padding:3px 10px;">Login via Browser</button>
+            <span style="font-size:11px;color:var(--text-muted);flex:1;" id="setupClaudeLoginMsg"></span>
+          </div>
         </div>
       </div>
 
       <!-- Codex -->
-      <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div class="setup-provider-card" id="setupCardCodex" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <div class="agent-icon codex" style="width:32px;height:32px;font-size:15px;">X</div>
           <div style="flex:1;">
             <div style="font-weight:600;">Codex (OpenAI)</div>
@@ -1340,35 +1353,55 @@
           </div>
           <span class="status-badge pending" id="setupCodexBadge">...</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-          <span style="font-size:11px;color:var(--text-secondary);min-width:60px;">API Key</span>
-          <input type="password" class="agent-prompt-input" id="setupCodexKey" placeholder="sk-..." style="flex:1;" />
-          <button class="btn btn-send" onclick="saveKey('openai','setupCodexKey')">Save</button>
+        <!-- Step 1: Install -->
+        <div id="setupCodexInstall" style="margin-bottom:10px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 1</span>
+            <button class="btn btn-send" onclick="installCli('codex')" id="setupCodexInstallBtn" style="flex:none;">Install CLI</button>
+            <span style="font-size:11px;color:var(--text-muted);flex:1;" id="setupCodexInstallMsg"></span>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);">
-          Or use CLI: <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;">npm i -g @openai/codex && export OPENAI_API_KEY="sk-..."</code>
+        <!-- Step 2: API key only (Codex has no CLI login) -->
+        <div id="setupCodexAuth" style="margin-bottom:8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 2</span>
+            <input type="password" class="agent-prompt-input" id="setupCodexKey" placeholder="sk-..." style="flex:1;" />
+            <button class="btn btn-send" onclick="saveKey('openai','setupCodexKey')">Save Key</button>
+          </div>
         </div>
       </div>
 
       <!-- Gemini -->
-      <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div class="setup-provider-card" id="setupCardGemini" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <div class="agent-icon gemini" style="width:32px;height:32px;font-size:15px;">G</div>
           <div style="flex:1;">
-            <div style="font-weight:600;">Gemini (Google)</div>
+            <div style="font-weight:600;">Gemini (Google) <span style="font-size:10px;color:var(--accent-orange);">optional</span></div>
             <div style="font-size:11px;color:var(--text-muted);" id="setupGeminiStatus">Checking...</div>
           </div>
           <span class="status-badge pending" id="setupGeminiBadge">...</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-          <span style="font-size:11px;color:var(--text-secondary);min-width:60px;">API Key</span>
-          <input type="password" class="agent-prompt-input" id="setupGeminiKey" placeholder="AIza..." style="flex:1;" />
-          <button class="btn btn-send" onclick="saveKey('google','setupGeminiKey')">Save</button>
+        <!-- Step 1: Install -->
+        <div id="setupGeminiInstall" style="margin-bottom:10px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 1</span>
+            <button class="btn btn-send" onclick="installCli('gemini')" id="setupGeminiInstallBtn" style="flex:none;">Install CLI</button>
+            <span style="font-size:11px;color:var(--text-muted);flex:1;" id="setupGeminiInstallMsg"></span>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);">
-          Or use CLI: <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;">npm i -g @google/gemini-cli && gemini auth login</code>
+        <!-- Step 2: Auth -->
+        <div id="setupGeminiAuth" style="margin-bottom:8px;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <span style="font-size:11px;color:var(--text-secondary);min-width:50px;">Step 2</span>
+            <input type="password" class="agent-prompt-input" id="setupGeminiKey" placeholder="AIza..." style="flex:1;" />
+            <button class="btn btn-send" onclick="saveKey('google','setupGeminiKey')">Save Key</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;padding-left:58px;">
+            <span style="font-size:11px;color:var(--text-muted);">or</span>
+            <button class="btn" onclick="cliLogin('gemini')" id="setupGeminiLoginBtn" style="font-size:11px;padding:3px 10px;">Login via Browser</button>
+            <span style="font-size:11px;color:var(--text-muted);flex:1;" id="setupGeminiLoginMsg"></span>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--accent-orange);margin-top:4px;">Optional — LLMTrio works without Gemini.</div>
       </div>
 
       <div class="first-run-actions">
@@ -2037,6 +2070,14 @@
       eventSource.addEventListener('tasks-update', (e) => {
         try { handleTasksUpdate(JSON.parse(e.data)); } catch {}
       });
+      eventSource.addEventListener('setup-update', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.status === 'installed' || data.status === 'logged-in') {
+            checkAuthStatus();
+          }
+        } catch {}
+      });
     }
   };
 
@@ -2204,20 +2245,110 @@
   function updateSetupCard(name, id, info) {
     const badge = $('setup' + name + 'Badge');
     const status = $('setup' + name + 'Status');
+    const installBtn = $('setup' + name + 'InstallBtn');
+    const installMsg = $('setup' + name + 'InstallMsg');
     if (!info.installed) {
       badge.className = 'status-badge error';
       badge.textContent = 'Not installed';
-      status.textContent = 'CLI not found. Install it or use an API key.';
+      status.textContent = 'CLI not found. Click Install or enter an API key.';
+      if (installBtn) { installBtn.disabled = false; installBtn.textContent = 'Install CLI'; }
+      if (installMsg) installMsg.textContent = '';
     } else if (info.authenticated) {
       badge.className = 'status-badge done';
       badge.textContent = 'Ready';
       status.textContent = info.version || 'Authenticated';
+      if (installBtn) { installBtn.disabled = true; installBtn.textContent = 'Installed'; }
+      if (installMsg) installMsg.textContent = '';
     } else {
       badge.className = 'status-badge cancelled';
       badge.textContent = 'No auth';
-      status.textContent = 'Installed but not authenticated. Add an API key or login via CLI.';
+      status.textContent = 'Installed. Now add an API key or login via browser.';
+      if (installBtn) { installBtn.disabled = true; installBtn.textContent = 'Installed'; }
+      if (installMsg) installMsg.textContent = '';
     }
   }
+
+  window.installCli = function(provider) {
+    const name = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const btn = $('setup' + name + 'InstallBtn');
+    const msg = $('setup' + name + 'InstallMsg');
+    btn.disabled = true;
+    btn.textContent = 'Installing...';
+    msg.textContent = 'This may take a minute...';
+    msg.style.color = 'var(--accent-blue)';
+    fetch('/api/install-cli', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        msg.textContent = 'Installed successfully!';
+        msg.style.color = 'var(--accent-green)';
+        btn.textContent = 'Installed';
+      } else {
+        msg.textContent = 'Install failed. Try manually: npm i -g ' + ({claude:'@anthropic-ai/claude-code',codex:'@openai/codex',gemini:'@google/gemini-cli'}[provider] || '');
+        msg.style.color = 'var(--accent-red)';
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+      }
+      checkAuthStatus();
+    })
+    .catch(() => {
+      msg.textContent = 'Network error';
+      msg.style.color = 'var(--accent-red)';
+      btn.disabled = false;
+      btn.textContent = 'Retry';
+    });
+  };
+
+  window.cliLogin = function(provider) {
+    const name = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const btn = $('setup' + name + 'LoginBtn');
+    const msg = $('setup' + name + 'LoginMsg');
+    btn.disabled = true;
+    btn.textContent = 'Opening browser...';
+    msg.textContent = 'Complete login in the browser window that opens.';
+    msg.style.color = 'var(--accent-blue)';
+    fetch('/api/cli-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider }),
+    })
+    .then(r => r.json())
+    .then(() => {
+      msg.textContent = 'Waiting for login... (complete in browser)';
+      // Poll auth status until login completes
+      let polls = 0;
+      const pollInterval = setInterval(() => {
+        polls++;
+        if (polls > 60) { // 2 minutes timeout
+          clearInterval(pollInterval);
+          msg.textContent = 'Login timed out. Try again.';
+          msg.style.color = 'var(--accent-orange)';
+          btn.disabled = false;
+          btn.textContent = 'Login via Browser';
+          return;
+        }
+        fetch('/api/auth-status').then(r => r.json()).then(data => {
+          if (data[provider] && data[provider].authenticated) {
+            clearInterval(pollInterval);
+            msg.textContent = 'Logged in!';
+            msg.style.color = 'var(--accent-green)';
+            btn.textContent = 'Logged in';
+            checkAuthStatus();
+          }
+        }).catch(() => {});
+      }, 2000);
+    })
+    .catch(() => {
+      msg.textContent = 'Failed to start login';
+      msg.style.color = 'var(--accent-red)';
+      btn.disabled = false;
+      btn.textContent = 'Login via Browser';
+    });
+  };
 
   window.saveKey = function(provider, inputId) {
     const input = $(inputId);
@@ -2232,7 +2363,7 @@
     .then(data => {
       if (data.ok) {
         input.value = '';
-        input.placeholder = '✓ Saved';
+        input.placeholder = 'Saved!';
         checkAuthStatus();
       }
     })

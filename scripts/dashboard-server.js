@@ -177,6 +177,10 @@ function handleRequest(req, res) {
     serveAuthStatus(res);
   } else if (req.method === 'POST' && pathname === '/api/save-key') {
     saveApiKey(req, res);
+  } else if (req.method === 'POST' && pathname === '/api/install-cli') {
+    installCli(req, res);
+  } else if (req.method === 'POST' && pathname === '/api/cli-login') {
+    cliLogin(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -315,6 +319,91 @@ function saveApiKey(req, res) {
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, saved: envVar }));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+  });
+}
+
+// --- POST /api/install-cli ---
+
+const INSTALL_COMMANDS = {
+  claude: 'npm install -g @anthropic-ai/claude-code',
+  codex: 'npm install -g @openai/codex',
+  gemini: 'npm install -g @google/gemini-cli',
+};
+
+function installCli(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { provider } = JSON.parse(body);
+      const cmd = INSTALL_COMMANDS[provider];
+      if (!cmd) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid provider' }));
+        return;
+      }
+      broadcast('setup-update', { provider, status: 'installing' });
+      const proc = spawn('sh', ['-c', cmd], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let stdout = '', stderr = '';
+      proc.stdout.on('data', d => { stdout += d.toString(); });
+      proc.stderr.on('data', d => { stderr += d.toString(); });
+      proc.on('close', code => {
+        const ok = code === 0;
+        broadcast('setup-update', { provider, status: ok ? 'installed' : 'install-failed', output: (stdout + stderr).slice(-2000) });
+        res.writeHead(ok ? 200 : 500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok, output: (stdout + stderr).slice(-2000) }));
+      });
+      proc.on('error', err => {
+        broadcast('setup-update', { provider, status: 'install-failed', error: err.message });
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+  });
+}
+
+// --- POST /api/cli-login ---
+
+const LOGIN_COMMANDS = {
+  claude: 'claude login',
+  gemini: 'gemini auth login',
+};
+
+function cliLogin(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { provider } = JSON.parse(body);
+      const cmd = LOGIN_COMMANDS[provider];
+      if (!cmd) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid provider. Only claude and gemini support CLI login.' }));
+        return;
+      }
+      broadcast('setup-update', { provider, status: 'logging-in' });
+      // Spawn login process — it opens browser for OAuth
+      const proc = spawn('sh', ['-c', cmd], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, BROWSER: process.platform === 'darwin' ? 'open' : 'xdg-open' },
+      });
+      let output = '';
+      proc.stdout.on('data', d => { output += d.toString(); });
+      proc.stderr.on('data', d => { output += d.toString(); });
+      // Return immediately — login is async (user completes OAuth in browser)
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, message: 'Login started. Complete authentication in the browser window.' }));
+      proc.on('close', code => {
+        const ok = code === 0;
+        broadcast('setup-update', { provider, status: ok ? 'logged-in' : 'login-failed', output: output.slice(-1000) });
+      });
     } catch {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid JSON' }));
