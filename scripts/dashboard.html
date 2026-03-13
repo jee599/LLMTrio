@@ -527,309 +527,486 @@
     transition: width 0.5s;
   }
 
-  /* ── Phase 2: Task Board (Kanban) ── */
-  .task-board {
+  /* ── Task Board — Linear/Jira-style Kanban ── */
+  .kb {
     display: flex;
     flex-direction: column;
-    gap: 0;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
-  /* Phase swimlane */
-  .task-phase-lane {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  .task-phase-header {
+  /* ── Toolbar ── */
+  .kb-toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px 10px;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--bg-primary);
-  }
-
-  .task-phase-num {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
     flex-shrink: 0;
-    border: 2px solid var(--border);
-    color: var(--text-muted);
-    transition: all 0.3s;
   }
 
-  .task-phase-lane.active .task-phase-num {
-    background: linear-gradient(135deg, var(--accent-blue), #7c5bf5);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 0 12px rgba(91,141,239,0.3);
+  .kb-search {
+    width: 200px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px 7px 30px;
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%234a4e62' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 8px center;
   }
 
-  .task-phase-lane.completed .task-phase-num {
-    background: var(--accent-green);
-    border-color: transparent;
-    color: #fff;
+  .kb-search:focus { border-color: var(--accent-blue); }
+
+  .kb-filter-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
   }
 
-  .task-phase-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text-muted);
-    transition: color 0.3s;
+  .kb-filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .kb-filter-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(91,141,239,0.08); }
+
+  .kb-spacer { flex: 1; }
+
+  .kb-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
   }
 
-  .task-phase-lane.active .task-phase-name { color: var(--text-primary); }
-  .task-phase-lane.completed .task-phase-name { color: var(--accent-green); }
-
-  .task-phase-progress {
-    margin-left: auto;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-  }
-
-  .task-phase-bar {
-    height: 3px;
+  .kb-progress-bar {
+    width: 120px;
+    height: 4px;
     background: var(--border);
     border-radius: 2px;
-    width: 80px;
     overflow: hidden;
-    margin-left: 8px;
   }
 
-  .task-phase-bar-fill {
+  .kb-progress-fill {
     height: 100%;
     background: var(--accent-green);
     border-radius: 2px;
     transition: width 0.5s ease;
   }
 
-  /* Kanban columns inside phase */
-  .task-phase-columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    padding: 0 16px 12px 56px;
-  }
-
-  .task-column {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    min-height: 60px;
-  }
-
-  .task-column-header {
-    padding: 10px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .task-column-count {
-    background: var(--bg-hover);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    color: var(--text-secondary);
+  .kb-progress-text {
     font-family: var(--font-mono);
+    font-size: 11px;
+    min-width: 60px;
   }
 
-  .task-column-body {
+  /* ── Columns container ── */
+  .kb-columns {
+    display: flex;
+    gap: 0;
     flex: 1;
-    padding: 8px;
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0;
+  }
+
+  /* ── Single column ── */
+  .kb-col {
+    flex: 1;
+    min-width: 240px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 40px;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
   }
 
-  /* Dependency connector between phases */
-  .task-phase-connector {
+  .kb-col:last-child { border-right: none; }
+
+  .kb-col-head {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0 0 0 26px;
-    height: 24px;
-  }
-
-  .task-phase-connector-line {
-    width: 2px;
-    height: 24px;
-    background: var(--border);
-    position: relative;
-  }
-
-  .task-phase-connector-line.completed { background: var(--accent-green); }
-
-  .task-phase-connector-arrow {
-    width: 0; height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid var(--border);
-    margin-top: -1px;
-  }
-
-  .task-phase-connector-line.completed + .task-phase-connector-arrow { border-top-color: var(--accent-green); }
-
-  /* Task card */
-  .task-card {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius);
+    gap: 8px;
     padding: 12px 14px;
-    font-size: 12px;
-    cursor: grab;
-    transition: all 0.2s ease;
-    position: relative;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
-  .task-card:hover { border-color: rgba(91,141,239,0.3); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
-  .task-card.dragging { opacity: 0.5; }
-
-  .task-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    gap: 8px;
-  }
-
-  .task-card-name {
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--text-primary);
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .task-card-agent {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .task-card-agent.claude { background: rgba(232,167,108,0.15); color: var(--claude-color); border: 1px solid rgba(232,167,108,0.25); }
-  .task-card-agent.codex { background: rgba(91,188,232,0.15); color: var(--codex-color); border: 1px solid rgba(91,188,232,0.25); }
-  .task-card-agent.gemini { background: rgba(155,140,245,0.15); color: var(--gemini-color); border: 1px solid rgba(155,140,245,0.25); }
-
-  .task-card-type {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: rgba(91,141,239,0.1);
-    color: var(--accent-blue);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-
-  .task-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    margin-top: 6px;
-  }
-
-  .task-card-status-dot {
-    width: 8px;
-    height: 8px;
+  .kb-col-dot {
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
   }
 
-  .task-card-status-dot.pending { background: var(--status-pending); }
-  .task-card-status-dot.working { background: var(--status-working); animation: pulse 2s infinite; }
-  .task-card-status-dot.done { background: var(--status-done); }
-  .task-card-status-dot.error { background: var(--status-error); }
+  .kb-col-dot.queued    { background: var(--text-muted); }
+  .kb-col-dot.running   { background: var(--accent-blue); box-shadow: 0 0 6px rgba(91,141,239,0.4); animation: pulse 2s infinite; }
+  .kb-col-dot.review    { background: var(--accent-orange); }
+  .kb-col-dot.done      { background: var(--accent-green); }
+  .kb-col-dot.failed    { background: var(--accent-red); }
 
-  .task-card-deps {
-    display: flex;
-    gap: 4px;
-    margin-top: 8px;
-    flex-wrap: wrap;
+  .kb-col-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
   }
 
-  .task-dep-tag {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: var(--bg-tertiary);
+  .kb-col-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--text-muted);
-    border: 1px solid var(--border-subtle);
+    background: var(--bg-hover);
+    padding: 1px 7px;
+    border-radius: 10px;
   }
 
-  .task-dep-tag.resolved {
-    color: var(--accent-green);
-    border-color: rgba(52,211,153,0.2);
-    background: rgba(52,211,153,0.05);
+  .kb-col-wip {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
   }
 
-  .task-card-actions {
+  .kb-col-wip.over { color: var(--accent-red); font-weight: 600; }
+
+  .kb-col-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    margin-top: 8px;
   }
 
-  .task-column-body.drag-over {
+  .kb-col-body::-webkit-scrollbar { width: 4px; }
+  .kb-col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .kb-col-body.drag-over {
     background: rgba(91,141,239,0.04);
-    border: 1px dashed rgba(91,141,239,0.3);
+    outline: 2px dashed rgba(91,141,239,0.2);
+    outline-offset: -2px;
     border-radius: var(--radius-sm);
   }
 
-  /* Empty state */
-  .task-board-empty {
+  .kb-col-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    margin: 4px;
+  }
+
+  /* ── Task card ── */
+  .kb-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    cursor: grab;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+
+  .kb-card:hover {
+    border-color: rgba(91,141,239,0.3);
+    border-left-color: inherit;
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  .kb-card:active { cursor: grabbing; }
+  .kb-card.dragging { opacity: 0.4; }
+  .kb-card.blocked { opacity: 0.55; }
+
+  /* Priority left border */
+  .kb-card.p-critical { border-left-color: #ef4444; }
+  .kb-card.p-high     { border-left-color: #f97316; }
+  .kb-card.p-medium   { border-left-color: #eab308; }
+  .kb-card.p-low      { border-left-color: #6b7280; }
+
+  .kb-card-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .kb-card-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .kb-card-labels {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .kb-label {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+  }
+
+  .kb-label.type {
+    text-transform: uppercase;
+    background: rgba(91,141,239,0.1);
+    color: var(--accent-blue);
+  }
+
+  .kb-label.phase {
+    background: rgba(155,140,245,0.1);
+    color: var(--gemini-color);
+  }
+
+  .kb-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Agent avatar */
+  .kb-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 10px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .kb-avatar.claude { background: linear-gradient(135deg, #e8a76c, #d48c4a); }
+  .kb-avatar.codex  { background: linear-gradient(135deg, #5bbce8, #3da0d0); }
+  .kb-avatar.gemini { background: linear-gradient(135deg, #9b8cf5, #7c6cdb); }
+
+  .kb-card-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .kb-card-cost {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .kb-card-blocker {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(239,83,80,0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(239,83,80,0.2);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .kb-card-actions {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    gap: 4px;
+  }
+
+  .kb-card:hover .kb-card-actions { display: flex; }
+
+  .kb-card-action-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .kb-card-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* ── Detail panel (slide-in) ── */
+  .kb-detail {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 480px;
+    max-width: 90vw;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    box-shadow: -8px 0 32px rgba(0,0,0,0.3);
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    animation: slideInRight 0.2s ease;
+  }
+
+  .kb-detail.open { display: flex; }
+
+  @keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  .kb-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kb-detail-head h3 {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .kb-detail-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kb-detail-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .kb-detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .kb-detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .kb-detail-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+
+  .kb-detail-value {
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .kb-detail-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .kb-detail-deps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .kb-detail-dep {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    font-size: 12px;
+  }
+
+  .kb-detail-dep-icon {
+    font-size: 14px;
+  }
+
+  .kb-detail-output {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .kb-detail-actions {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Empty board ── */
+  .kb-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 80px 20px;
     color: var(--text-muted);
     text-align: center;
     flex: 1;
   }
 
-  .task-board-empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.3;
-  }
-
-  .task-board-empty-text {
-    font-size: 14px;
-    margin-bottom: 4px;
-  }
-
-  .task-board-empty-sub {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
+  .kb-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+  .kb-empty-title { font-size: 16px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+  .kb-empty-sub { font-size: 13px; }
 
   /* ── Phase 3: Model Management ── */
   .model-grid {
@@ -1616,8 +1793,17 @@
         <button class="btn btn-send" onclick="sendDebateInput()" data-i18n="send">Send</button>
       </div>
     </div>
-    <div class="tab-content" id="tab-tasks">
-      <div class="task-board" id="taskBoard"></div>
+    <div class="tab-content" id="tab-tasks" style="padding:0;overflow:hidden;">
+      <div class="kb" id="taskBoard"></div>
+      <!-- Detail Panel -->
+      <div class="kb-detail" id="kbDetail">
+        <div class="kb-detail-head">
+          <h3 id="kbDetailTitle">Task</h3>
+          <button class="kb-detail-close" onclick="closeDetail()">✕</button>
+        </div>
+        <div class="kb-detail-body" id="kbDetailBody"></div>
+        <div class="kb-detail-actions" id="kbDetailActions"></div>
+      </div>
     </div>
     <div class="tab-content" id="tab-models">
       <div class="new-model-banner" id="newModelBanner" style="display:none;">
@@ -2298,8 +2484,10 @@
     return div.innerHTML;
   }
 
-  // ── Phase 2: Task Board (Kanban with Phase Swimlanes) ──
+  // ── Task Board — Linear/Jira-style Kanban ──
   let tasks = [];
+  let kbFilter = '';
+  let kbGroupBy = 'status'; // 'status' | 'phase' | 'agent'
 
   const PHASE_META = {
     discover: { num: 1, label: 'Discover', labelKo: '탐색', tasks: ['requirements-analysis', 'tech-research'] },
@@ -2308,128 +2496,255 @@
     deliver:  { num: 4, label: 'Deliver',  labelKo: '배포', tasks: ['code-review', 'documentation'] },
   };
   const PHASE_DEPS = { discover: [], define: ['discover'], develop: ['define'], deliver: ['develop'] };
+  const PRIORITY_MAP = { 'requirements-analysis': 'high', 'tech-research': 'medium', 'architecture-design': 'critical', 'api-design': 'high', 'implementation': 'critical', 'testing': 'high', 'code-review': 'high', 'documentation': 'medium' };
 
-  function getPhaseForTask(taskName) {
-    for (const [phase, meta] of Object.entries(PHASE_META)) {
-      if (meta.tasks.includes(taskName)) return phase;
-    }
+  function getPhaseForTask(name) {
+    for (const [p, m] of Object.entries(PHASE_META)) { if (m.tasks.includes(name)) return p; }
     return null;
+  }
+
+  function getTaskDeps(task) {
+    const phase = getPhaseForTask(task.name);
+    if (!phase) return [];
+    return (PHASE_DEPS[phase] || []).flatMap(depPhase =>
+      tasks.filter(t => getPhaseForTask(t.name) === depPhase)
+    );
+  }
+
+  function isBlocked(task) {
+    const deps = getTaskDeps(task);
+    return deps.length > 0 && !deps.every(d => d.status === 'done');
   }
 
   function renderTaskBoard() {
     const board = $('taskBoard');
     if (!tasks.length) {
       board.innerHTML = `
-        <div class="task-board-empty">
-          <div class="task-board-empty-icon">📋</div>
-          <div class="task-board-empty-text">${lang === 'ko' ? '아직 태스크가 없습니다' : 'No tasks yet'}</div>
-          <div class="task-board-empty-sub">${lang === 'ko' ? './trio start "프롬프트"로 워크플로우를 시작하세요' : 'Run ./trio start "prompt" to begin a workflow'}</div>
+        <div class="kb-empty">
+          <div class="kb-empty-icon">📋</div>
+          <div class="kb-empty-title">${lang === 'ko' ? '아직 태스크가 없습니다' : 'No tasks yet'}</div>
+          <div class="kb-empty-sub">${lang === 'ko' ? './trio start "프롬프트"로 워크플로우를 시작하세요' : 'Start a workflow with ./trio start "your prompt"'}</div>
         </div>`;
       return;
     }
 
-    const phases = ['discover', 'define', 'develop', 'deliver'];
-    const currentPhaseIdx = phases.indexOf(state.phase);
-    let html = '';
+    const filtered = kbFilter
+      ? tasks.filter(t => (t.name||'').toLowerCase().includes(kbFilter) || (t.agent||'').toLowerCase().includes(kbFilter) || (t.type||'').toLowerCase().includes(kbFilter))
+      : tasks;
 
-    phases.forEach((phase, idx) => {
-      const meta = PHASE_META[phase];
-      const phaseTasks = tasks.filter(t => getPhaseForTask(t.name) === phase);
-      // If no tasks match by name, group by phase index from workflow order
-      const fallbackTasks = phaseTasks.length === 0 ? tasks.filter(t => t.phase === phase) : [];
-      const allPhaseTasks = [...phaseTasks, ...fallbackTasks];
+    const totalDone = filtered.filter(t => t.status === 'done').length;
+    const totalCount = filtered.length;
+    const pct = totalCount ? Math.round(totalDone / totalCount * 100) : 0;
 
-      const pending = allPhaseTasks.filter(t => t.status === 'pending' || t.status === 'approved');
-      const working = allPhaseTasks.filter(t => t.status === 'working');
-      const done = allPhaseTasks.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'cancelled' || t.status === 'rejected');
+    const cols = kbGroupBy === 'status'
+      ? [
+          { key: 'queued',  label: lang==='ko' ? '대기' : 'Queued',  items: filtered.filter(t => t.status==='pending' || t.status==='approved'), dot: 'queued' },
+          { key: 'running', label: lang==='ko' ? '진행중' : 'Running', items: filtered.filter(t => t.status==='working'), dot: 'running', wip: 6 },
+          { key: 'review',  label: lang==='ko' ? '리뷰' : 'Review',  items: filtered.filter(t => t.status==='done'), dot: 'review' },
+          { key: 'done',    label: lang==='ko' ? '완료' : 'Done',    items: filtered.filter(t => t.status==='done' && t.approved), dot: 'done' },
+          { key: 'failed',  label: lang==='ko' ? '실패' : 'Failed',  items: filtered.filter(t => t.status==='error' || t.status==='cancelled'), dot: 'failed' },
+        ]
+      : kbGroupBy === 'phase'
+      ? ['discover','define','develop','deliver'].map(p => ({
+          key: p,
+          label: lang==='ko' ? PHASE_META[p].labelKo : PHASE_META[p].label,
+          items: filtered.filter(t => getPhaseForTask(t.name) === p),
+          dot: p === state.phase ? 'running' : 'queued',
+        }))
+      : ['claude','codex','gemini'].map(a => ({
+          key: a,
+          label: a.charAt(0).toUpperCase() + a.slice(1),
+          items: filtered.filter(t => t.agent === a),
+          dot: 'queued',
+        }));
 
-      const total = allPhaseTasks.length;
-      const doneCount = done.length;
-      const phaseClass = idx < currentPhaseIdx ? 'completed' : idx === currentPhaseIdx ? 'active' : '';
-      const depPhases = PHASE_DEPS[phase];
-      const depsMet = depPhases.every(dep => {
-        const depTasks = tasks.filter(t => getPhaseForTask(t.name) === dep);
-        return depTasks.length > 0 && depTasks.every(t => t.status === 'done');
-      });
-
-      // Connector between phases
-      if (idx > 0) {
-        const connClass = idx <= currentPhaseIdx ? 'completed' : '';
-        html += `<div class="task-phase-connector">
-          <div style="display:flex;flex-direction:column;align-items:center;">
-            <div class="task-phase-connector-line ${connClass}"></div>
-            <div class="task-phase-connector-arrow"></div>
-          </div>
-        </div>`;
+    // When grouping by status, merge review into done if no approved tasks
+    if (kbGroupBy === 'status') {
+      const reviewCol = cols.find(c => c.key === 'review');
+      const doneCol = cols.find(c => c.key === 'done');
+      if (doneCol && doneCol.items.length === 0 && reviewCol) {
+        doneCol.items = reviewCol.items;
+        reviewCol.items = [];
       }
+    }
 
-      const phaseLabel = lang === 'ko' ? meta.labelKo : meta.label;
+    let html = `<div class="kb-toolbar">
+      <input class="kb-search" type="text" placeholder="${lang==='ko' ? '태스크 검색...' : 'Search tasks...'}" value="${escapeHtml(kbFilter)}" oninput="kbSearch(this.value)" />
+      <button class="kb-filter-btn ${kbGroupBy==='status' ? 'active' : ''}" onclick="kbSetGroup('status')">${lang==='ko' ? '상태별' : 'Status'}</button>
+      <button class="kb-filter-btn ${kbGroupBy==='phase' ? 'active' : ''}" onclick="kbSetGroup('phase')">${lang==='ko' ? '페이즈별' : 'Phase'}</button>
+      <button class="kb-filter-btn ${kbGroupBy==='agent' ? 'active' : ''}" onclick="kbSetGroup('agent')">${lang==='ko' ? '에이전트별' : 'Agent'}</button>
+      <div class="kb-spacer"></div>
+      <div class="kb-progress">
+        <div class="kb-progress-bar"><div class="kb-progress-fill" style="width:${pct}%"></div></div>
+        <span class="kb-progress-text">${totalDone}/${totalCount} (${pct}%)</span>
+      </div>
+    </div>
+    <div class="kb-columns">`;
 
-      html += `<div class="task-phase-lane ${phaseClass}" data-phase="${phase}">
-        <div class="task-phase-header">
-          <div class="task-phase-num">${meta.num}</div>
-          <span class="task-phase-name">${phaseLabel}</span>
-          ${depPhases.length ? '<span style="font-size:11px;color:var(--text-muted);">← ' + depPhases.map(d => lang === 'ko' ? PHASE_META[d].labelKo : PHASE_META[d].label).join(', ') + '</span>' : ''}
-          <span class="task-phase-progress">${doneCount}/${total || '—'}</span>
-          <div class="task-phase-bar"><div class="task-phase-bar-fill" style="width:${total ? (doneCount/total*100) : 0}%"></div></div>
+    for (const col of cols) {
+      if (kbGroupBy === 'status' && col.items.length === 0 && (col.key === 'review')) continue;
+      const wipOver = col.wip && col.items.length > col.wip;
+      html += `<div class="kb-col">
+        <div class="kb-col-head">
+          <div class="kb-col-dot ${col.dot}"></div>
+          <span class="kb-col-name">${col.label}</span>
+          <span class="kb-col-count">${col.items.length}</span>
+          ${col.wip ? `<span class="kb-col-wip ${wipOver ? 'over' : ''}">WIP ${col.items.length}/${col.wip}</span>` : ''}
         </div>
-        <div class="task-phase-columns">
-          <div class="task-column" data-status="pending" data-phase="${phase}">
-            <div class="task-column-header"><span>${t.pendingCol}</span><span class="task-column-count">${pending.length}</span></div>
-            <div class="task-column-body" id="col-${phase}-pending">${renderTaskCards(pending, depsMet)}</div>
-          </div>
-          <div class="task-column" data-status="working" data-phase="${phase}">
-            <div class="task-column-header"><span>${t.workingCol}</span><span class="task-column-count">${working.length}</span></div>
-            <div class="task-column-body" id="col-${phase}-working">${renderTaskCards(working, true)}</div>
-          </div>
-          <div class="task-column" data-status="done" data-phase="${phase}">
-            <div class="task-column-header"><span>${t.doneCol}</span><span class="task-column-count">${done.length}</span></div>
-            <div class="task-column-body" id="col-${phase}-done">${renderTaskCards(done, true)}</div>
-          </div>
+        <div class="kb-col-body" data-col="${col.key}"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="kbDrop(event,this)">
+          ${col.items.length === 0 ? `<div class="kb-col-empty">${lang==='ko' ? '비어있음' : 'No tasks'}</div>` : col.items.map(t => renderKbCard(t)).join('')}
         </div>
       </div>`;
-    });
+    }
 
+    html += '</div>';
     board.innerHTML = html;
-    initDragDrop();
   }
 
-  function renderTaskCards(items, depsMet) {
-    return items.map(t => {
-      const phase = getPhaseForTask(t.name);
-      const deps = phase ? PHASE_DEPS[phase] : [];
-      const depTags = deps.map(d => {
-        const depTasks = tasks.filter(dt => getPhaseForTask(dt.name) === d);
-        const resolved = depTasks.length > 0 && depTasks.every(dt => dt.status === 'done');
-        return `<span class="task-dep-tag ${resolved ? 'resolved' : ''}">${lang === 'ko' ? PHASE_META[d].labelKo : PHASE_META[d].label}</span>`;
-      }).join('');
+  function renderKbCard(t) {
+    const phase = getPhaseForTask(t.name);
+    const phaseLabel = phase ? (lang==='ko' ? PHASE_META[phase].labelKo : PHASE_META[phase].label) : '';
+    const priority = PRIORITY_MAP[t.name] || 'low';
+    const pClass = 'p-' + priority;
+    const blocked = isBlocked(t);
+    const deps = getTaskDeps(t);
+    const blockerHtml = blocked
+      ? `<span class="kb-card-blocker">⛔ ${lang==='ko' ? '차단됨' : 'Blocked'}</span>`
+      : '';
 
-      return `
-      <div class="task-card" draggable="true" data-task-id="${t.id}"
-           ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)"
-           style="${!depsMet && t.status === 'pending' ? 'opacity:0.5;' : ''}">
-        <div class="task-card-header">
-          <span class="task-card-name">${escapeHtml(t.name || t.id)}</span>
-          <span class="task-card-agent ${t.agent || ''}">${t.agent || '—'}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span class="task-card-type">${escapeHtml(t.type || '')}</span>
-          ${depTags ? '<div class="task-card-deps">' + depTags + '</div>' : ''}
-        </div>
-        <div class="task-card-meta">
-          <span class="task-card-status-dot ${t.status}"></span>
-          <span>${formatElapsed(t.elapsed)}</span>
-          <span>${formatCost(t.cost || 0)}</span>
-          ${t.status === 'done' ? `
-            <span style="margin-left:auto;display:flex;gap:4px;">
-              <button class="btn btn-approve" style="padding:3px 8px;font-size:10px;" onclick="approveTask('${t.id}')">${i18n[lang].approve}</button>
-              <button class="btn btn-reject" style="padding:3px 8px;font-size:10px;" onclick="rejectTask('${t.id}')">${i18n[lang].reject}</button>
-            </span>` : ''}
-          ${t.error ? '<span style="color:var(--accent-red);font-size:10px;margin-left:auto;" title="' + escapeHtml(t.error) + '">⚠</span>' : ''}
-        </div>
-      </div>`;
-    }).join('');
+    return `<div class="kb-card ${pClass} ${blocked ? 'blocked' : ''}" draggable="true" data-task-id="${t.id}"
+         ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)"
+         onclick="openDetail('${t.id}')">
+      <div class="kb-card-actions">
+        <button class="kb-card-action-btn" onclick="event.stopPropagation();approveTask('${t.id}')" title="${i18n[lang].approve}">✓</button>
+        <button class="kb-card-action-btn" onclick="event.stopPropagation();rejectTask('${t.id}')" title="${i18n[lang].reject}">✕</button>
+      </div>
+      <div class="kb-card-id">${escapeHtml(t.id || '')}</div>
+      <div class="kb-card-title">${escapeHtml(t.name || t.id)}</div>
+      <div class="kb-card-labels">
+        <span class="kb-label type">${escapeHtml(t.type || '')}</span>
+        ${phaseLabel ? `<span class="kb-label phase">${phaseLabel}</span>` : ''}
+      </div>
+      <div class="kb-card-footer">
+        <div class="kb-avatar ${t.agent || ''}">${(t.agent||'?').charAt(0).toUpperCase()}</div>
+        <span class="kb-card-time">${formatElapsed(t.elapsed)}</span>
+        <span class="kb-card-cost">${formatCost(t.cost || 0)}</span>
+        ${blockerHtml}
+        ${t.error ? `<span class="kb-card-blocker" title="${escapeHtml(t.error)}">⚠ ${lang==='ko' ? '오류' : 'Error'}</span>` : ''}
+      </div>
+    </div>`;
   }
+
+  // Kanban interactions
+  window.kbSearch = function(val) {
+    kbFilter = val.toLowerCase();
+    renderTaskBoard();
+  };
+
+  window.kbSetGroup = function(group) {
+    kbGroupBy = group;
+    renderTaskBoard();
+  };
+
+  window.openDetail = function(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const detail = $('kbDetail');
+    const phase = getPhaseForTask(task.name);
+    const phaseLabel = phase ? (lang==='ko' ? PHASE_META[phase].labelKo : PHASE_META[phase].label) : '—';
+    const priority = PRIORITY_MAP[task.name] || 'low';
+    const deps = getTaskDeps(task);
+
+    $('kbDetailTitle').textContent = task.name || task.id;
+
+    $('kbDetailBody').innerHTML = `
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '상태' : 'Status'}</div>
+          <div class="kb-detail-value"><span class="status-badge ${task.status}">${STATUS_LABELS[task.status] || task.status}</span></div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '우선순위' : 'Priority'}</div>
+          <div class="kb-detail-value" style="text-transform:capitalize;">${priority}</div>
+        </div>
+      </div>
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '에이전트' : 'Agent'}</div>
+          <div class="kb-detail-value" style="display:flex;align-items:center;gap:8px;">
+            <div class="kb-avatar ${task.agent || ''}" style="width:26px;height:26px;font-size:11px;">${(task.agent||'?').charAt(0).toUpperCase()}</div>
+            ${task.agent || '—'}
+          </div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '페이즈' : 'Phase'}</div>
+          <div class="kb-detail-value">${phaseLabel}</div>
+        </div>
+      </div>
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '유형' : 'Type'}</div>
+          <div class="kb-detail-value"><span class="kb-label type">${escapeHtml(task.type || '')}</span></div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '비용' : 'Cost'}</div>
+          <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatCost(task.cost || 0)}</div>
+        </div>
+      </div>
+      <div class="kb-detail-field">
+        <div class="kb-detail-label">${lang==='ko' ? '경과시간' : 'Elapsed'}</div>
+        <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatElapsed(task.elapsed)}</div>
+      </div>
+      ${deps.length ? `
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${lang==='ko' ? '의존관계' : 'Dependencies'}</div>
+          <div class="kb-detail-deps">
+            ${deps.map(d => `
+              <div class="kb-detail-dep">
+                <span class="kb-detail-dep-icon">${d.status === 'done' ? '✅' : d.status === 'working' ? '🔄' : d.status === 'error' ? '❌' : '⏳'}</span>
+                <span style="flex:1;">${escapeHtml(d.name || d.id)}</span>
+                <span class="status-badge ${d.status}" style="font-size:9px;padding:2px 6px;">${STATUS_LABELS[d.status] || d.status}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+      ${task.error ? `
+        <div class="kb-detail-field">
+          <div class="kb-detail-label" style="color:var(--accent-red);">${lang==='ko' ? '오류' : 'Error'}</div>
+          <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);">${escapeHtml(task.error)}</div>
+        </div>` : ''}
+      <div class="kb-detail-field">
+        <div class="kb-detail-label">${lang==='ko' ? '출력' : 'Output'}</div>
+        <div class="kb-detail-output">${escapeHtml(state.agents[task.agent]?.output || t.waiting)}</div>
+      </div>
+    `;
+
+    $('kbDetailActions').innerHTML = `
+      <button class="btn btn-approve" onclick="approveTask('${task.id}')" style="padding:8px 16px;">${i18n[lang].approve}</button>
+      <button class="btn btn-reject" onclick="rejectTask('${task.id}')" style="padding:8px 16px;">${i18n[lang].reject}</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-cancel" onclick="postCommand({type:'cancel',target:'${task.agent}'})" style="padding:8px 16px;">${lang==='ko' ? '취소' : 'Cancel'}</button>
+    `;
+
+    detail.classList.add('open');
+  };
+
+  window.closeDetail = function() {
+    $('kbDetail').classList.remove('open');
+  };
+
+  window.kbDrop = function(e, colBody) {
+    e.preventDefault();
+    colBody.classList.remove('drag-over');
+    if (!draggedTaskId) return;
+    const task = tasks.find(t => t.id === draggedTaskId);
+    if (task && task.agent) {
+      postCommand({ type: 'reassign', taskId: draggedTaskId, target: task.agent });
+    }
+  };
 
   // Drag and drop
   let draggedTaskId = null;
@@ -2636,7 +2951,7 @@
     };
     const modelOptions = models.length > 0
       ? models.map(m => m.id)
-      : ['claude-opus-4.6', 'gpt-5.3-codex', 'gemini-2.5-pro'];
+      : ['claude-opus-4.6', 'gpt-5.4-codex', 'gemini-3.1-pro'];
 
     container.innerHTML = Object.entries(routing).map(([task, model]) => `
       <div class="routing-row">
