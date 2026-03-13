@@ -1,0 +1,6 @@
+{
+  "session_limit": 5.0,
+  "daily_limit": 20.0,
+  "opus_call_limit": 50,
+  "warn_at": 0.8
+}

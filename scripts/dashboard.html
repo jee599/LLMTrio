@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLMTrio Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d30;
+    --bg-hover: #383838;
+    --border: #3e3e42;
+    --text-primary: #cccccc;
+    --text-secondary: #969696;
+    --text-muted: #5a5a5a;
+    --accent-blue: #007acc;
+    --accent-green: #4ec9b0;
+    --accent-orange: #ce9178;
+    --accent-red: #f44747;
+    --accent-yellow: #dcdcaa;
+    --status-pending: #6e6e6e;
+    --status-working: #007acc;
+    --status-done: #4ec9b0;
+    --status-error: #f44747;
+    --status-cancelled: #ce9178;
+    --claude-color: #d4a574;
+    --codex-color: #7ec8e3;
+    --gemini-color: #8b7ec8;
+    --radius: 4px;
+    --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    overflow: hidden;
+  }
+
+  /* ── Layout ── */
+  #app {
+    display: grid;
+    grid-template-rows: 48px 1fr 56px;
+    grid-template-columns: 340px 1fr;
+    grid-template-areas:
+      "topbar  topbar"
+      "left    main"
+      "bottom  bottom";
+    height: 100vh;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    grid-area: topbar;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 8px;
+  }
+
+  .topbar-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-right: 32px;
+    white-space: nowrap;
+  }
+
+  .phase-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    max-width: 640px;
+  }
+
+  .phase-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    position: relative;
+    transition: all 0.3s;
+  }
+
+  .phase-step.active {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  .phase-step.completed {
+    color: var(--accent-green);
+  }
+
+  .phase-step .phase-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .phase-step.active .phase-num {
+    border-color: var(--accent-blue);
+    background: var(--accent-blue);
+    color: #fff;
+  }
+
+  .phase-step.completed .phase-num {
+    border-color: var(--accent-green);
+    background: var(--accent-green);
+    color: #fff;
+  }
+
+  .phase-connector {
+    width: 32px;
+    height: 1.5px;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .phase-connector.completed {
+    background: var(--accent-green);
+  }
+
+  .topbar-spacer { flex: 1; }
+
+  .topbar-status {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Left Panel ── */
+  .left-panel {
+    grid-area: left;
+    background: var(--bg-secondary);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .agent-card {
+    background: var(--bg-secondary);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .agent-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .agent-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .agent-icon.claude { background: var(--claude-color); }
+  .agent-icon.codex  { background: var(--codex-color); }
+  .agent-icon.gemini { background: var(--gemini-color); }
+
+  .agent-name {
+    font-weight: 600;
+    font-size: 13px;
+    flex: 1;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+
+  .status-badge.pending   { background: var(--status-pending); color: #ccc; }
+  .status-badge.working   { background: var(--status-working); color: #fff; animation: pulse 1.8s infinite; }
+  .status-badge.done      { background: var(--status-done);    color: #1e1e1e; }
+  .status-badge.error     { background: var(--status-error);   color: #fff; }
+  .status-badge.cancelled { background: var(--status-cancelled); color: #1e1e1e; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .agent-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    font-size: 11px;
+  }
+
+  .meta-label {
+    color: var(--text-secondary);
+  }
+
+  .meta-value {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    text-align: right;
+  }
+
+  .agent-output {
+    flex: 1;
+    min-height: 60px;
+    max-height: 160px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .agent-output::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .agent-output::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 3px;
+  }
+
+  /* ── Phase 2: Agent Controls ── */
+  .agent-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .agent-prompt-input {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px 8px;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    outline: none;
+  }
+
+  .agent-prompt-input:focus {
+    border-color: var(--accent-blue);
+  }
+
+  .agent-prompt-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+
+  .btn:hover { background: var(--bg-hover); }
+  .btn-send { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .btn-pause { border-color: var(--accent-orange); color: var(--accent-orange); }
+  .btn-cancel { border-color: var(--accent-red); color: var(--accent-red); }
+  .btn-approve { border-color: var(--accent-green); color: var(--accent-green); }
+  .btn-reject { border-color: var(--accent-red); color: var(--accent-red); }
+
+  /* ── Phase 2: Main Area Tabs ── */
+  .main-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  .main-tab {
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .main-tab:hover { color: var(--text-secondary); }
+  .main-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-blue);
+  }
+
+  .tab-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  /* ── Phase 2: Debate View ── */
+  .debate-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 60px;
+  }
+
+  .debate-bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  .debate-bubble.claude {
+    align-self: flex-start;
+    background: rgba(212,165,116,0.15);
+    border: 1px solid rgba(212,165,116,0.3);
+  }
+
+  .debate-bubble.codex {
+    align-self: center;
+    background: rgba(126,200,227,0.15);
+    border: 1px solid rgba(126,200,227,0.3);
+  }
+
+  .debate-bubble.gemini {
+    align-self: flex-end;
+    background: rgba(139,126,200,0.15);
+    border: 1px solid rgba(139,126,200,0.3);
+  }
+
+  .debate-bubble.user {
+    align-self: flex-end;
+    background: rgba(0,122,204,0.2);
+    border: 1px solid rgba(0,122,204,0.4);
+  }
+
+  .debate-sender {
+    font-weight: 600;
+    font-size: 11px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .debate-input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .debate-input-bar input {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+  }
+
+  .debate-input-bar input:focus { border-color: var(--accent-blue); }
+
+  .consensus-meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+
+  .consensus-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .consensus-fill {
+    height: 100%;
+    background: var(--accent-green);
+    border-radius: 3px;
+    transition: width 0.5s;
+  }
+
+  /* ── Phase 2: Task Board ── */
+  .task-board {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .task-column {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .task-column-header {
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .task-column-count {
+    background: var(--bg-hover);
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  .task-column-body {
+    flex: 1;
+    padding: 8px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 60px;
+  }
+
+  .task-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    cursor: grab;
+    transition: border-color 0.2s;
+  }
+
+  .task-card:hover { border-color: var(--accent-blue); }
+  .task-card.dragging { opacity: 0.5; }
+
+  .task-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .task-card-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .task-card-agent {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .task-card-agent.claude { background: rgba(212,165,116,0.3); color: var(--claude-color); }
+  .task-card-agent.codex { background: rgba(126,200,227,0.3); color: var(--codex-color); }
+  .task-card-agent.gemini { background: rgba(139,126,200,0.3); color: var(--gemini-color); }
+
+  .task-card-meta {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .task-column-body.drag-over {
+    background: rgba(0,122,204,0.05);
+    border: 1px dashed var(--accent-blue);
+    border-radius: 4px;
+  }
+
+  /* ── Phase 3: Model Management ── */
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .model-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .model-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .model-card-name {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .model-card-provider {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+
+  .model-card-strengths {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .strength-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,122,204,0.15);
+    color: var(--accent-blue);
+  }
+
+  .model-card-pricing {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    display: flex;
+    gap: 12px;
+  }
+
+  .model-card-benchmarks {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  .model-tier {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .model-tier.premium { background: rgba(212,165,116,0.2); color: var(--claude-color); }
+  .model-tier.standard { background: rgba(126,200,227,0.2); color: var(--codex-color); }
+
+  .routing-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .routing-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+  }
+
+  .routing-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .routing-row:last-child { border-bottom: none; }
+
+  .routing-task-label {
+    color: var(--text-secondary);
+    min-width: 120px;
+  }
+
+  .routing-select {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .routing-select:focus { border-color: var(--accent-blue); }
+
+  .budget-controls {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .budget-controls h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .budget-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+
+  .budget-slider-label {
+    color: var(--text-secondary);
+    min-width: 120px;
+  }
+
+  .budget-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .budget-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    cursor: pointer;
+  }
+
+  .budget-slider-value {
+    font-family: var(--font-mono);
+    min-width: 50px;
+    text-align: right;
+  }
+
+  .first-run-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .first-run-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .first-run-modal h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .first-run-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  .btn-primary {
+    background: var(--accent-blue);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+
+  .new-model-banner {
+    background: rgba(212,165,116,0.15);
+    border: 1px solid rgba(212,165,116,0.3);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .new-model-banner .dismiss {
+    margin-left: auto;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+
+  /* ── Main Area ── */
+  .main-area {
+    grid-area: main;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .flow-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    opacity: 0.85;
+  }
+
+  .flow-node {
+    width: 180px;
+    padding: 16px 20px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    background: var(--bg-secondary);
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .flow-node[data-status="working"] {
+    border-color: var(--status-working);
+    box-shadow: 0 0 12px rgba(0, 122, 204, 0.2);
+  }
+
+  .flow-node[data-status="done"] {
+    border-color: var(--status-done);
+  }
+
+  .flow-node[data-status="error"] {
+    border-color: var(--status-error);
+  }
+
+  .flow-node-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+
+  .flow-node-label {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .flow-node-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 48px;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+
+  .flow-arrow-line {
+    width: 1.5px;
+    height: 28px;
+    background: var(--border);
+  }
+
+  .flow-arrow-head {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--border);
+  }
+
+  .flow-arrow-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    position: absolute;
+    left: calc(100% + 8px);
+    white-space: nowrap;
+  }
+
+  .flow-side-group {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .flow-branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-h-connector {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+  }
+
+  .flow-h-line {
+    width: 40px;
+    height: 1.5px;
+    background: var(--border);
+  }
+
+  .flow-merge-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .main-watermark {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Bottom Bar ── */
+  .bottom-bar {
+    grid-area: bottom;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .cost-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cost-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .cost-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-yellow);
+  }
+
+  .cost-breakdown {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .cost-model {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .cost-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cost-dot.claude { background: var(--claude-color); }
+  .cost-dot.codex  { background: var(--codex-color); }
+  .cost-dot.gemini { background: var(--gemini-color); }
+
+  .cost-model-value {
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
+
+  .budget-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 200px;
+  }
+
+  .budget-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .budget-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent-green);
+    transition: width 0.5s ease, background 0.3s;
+    width: 0%;
+  }
+
+  .budget-bar-fill.warn {
+    background: var(--accent-orange);
+  }
+
+  .budget-bar-fill.danger {
+    background: var(--accent-red);
+  }
+
+  .budget-percent {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .opus-counter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+  }
+
+  .opus-counter-value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--claude-color);
+  }
+
+  /* ── SSE indicator ── */
+  .sse-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--status-pending);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .sse-indicator.connected {
+    background: var(--accent-green);
+  }
+
+  .sse-indicator.error {
+    background: var(--accent-red);
+  }
+
+  /* ── Scrollbar ── */
+  .left-panel::-webkit-scrollbar { width: 6px; }
+  .left-panel::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 1200px) {
+    #app {
+      grid-template-columns: 300px 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-title">LLMTrio</div>
+    <div class="phase-bar">
+      <div class="phase-step active" data-phase="discover">
+        <span class="phase-num">1</span>
+        <span>Discover</span>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase-step" data-phase="define">
+        <span class="phase-num">2</span>
+        <span>Define</span>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase-step" data-phase="develop">
+        <span class="phase-num">3</span>
+        <span>Develop</span>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase-step" data-phase="deliver">
+        <span class="phase-num">4</span>
+        <span>Deliver</span>
+      </div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <button class="btn btn-send" onclick="startDebate()" style="font-size:11px;">토론 시작</button>
+    <div class="sse-indicator" id="sseIndicator" title="SSE 연결 상태"></div>
+    <div class="topbar-status" id="topbarClock"></div>
+  </div>
+
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="agent-card" id="card-claude">
+      <div class="agent-header">
+        <div class="agent-icon claude">C</div>
+        <div class="agent-name">Claude</div>
+        <div class="status-badge pending" id="status-claude">대기</div>
+      </div>
+      <div class="agent-meta">
+        <span class="meta-label">작업</span>
+        <span class="meta-value" id="task-claude">—</span>
+        <span class="meta-label">경과시간</span>
+        <span class="meta-value" id="elapsed-claude">0.0s</span>
+        <span class="meta-label">비용</span>
+        <span class="meta-value" id="cost-claude">$0.000</span>
+        <span class="meta-label">출력</span>
+        <span class="meta-value" id="file-claude">—</span>
+      </div>
+      <div class="agent-output" id="output-claude">응답 대기 중...</div>
+      <div class="agent-controls">
+        <input type="text" class="agent-prompt-input" id="prompt-claude" placeholder="Claude에게 지시..." />
+        <button class="btn btn-send" onclick="sendPrompt('claude')">전송</button>
+        <button class="btn btn-pause" onclick="sendCmd('pause','claude')">⏸</button>
+        <button class="btn btn-cancel" onclick="sendCmd('cancel','claude')">✕</button>
+      </div>
+    </div>
+
+    <div class="agent-card" id="card-codex">
+      <div class="agent-header">
+        <div class="agent-icon codex">X</div>
+        <div class="agent-name">Codex</div>
+        <div class="status-badge pending" id="status-codex">대기</div>
+      </div>
+      <div class="agent-meta">
+        <span class="meta-label">작업</span>
+        <span class="meta-value" id="task-codex">—</span>
+        <span class="meta-label">경과시간</span>
+        <span class="meta-value" id="elapsed-codex">0.0s</span>
+        <span class="meta-label">비용</span>
+        <span class="meta-value" id="cost-codex">$0.000</span>
+        <span class="meta-label">출력</span>
+        <span class="meta-value" id="file-codex">—</span>
+      </div>
+      <div class="agent-output" id="output-codex">응답 대기 중...</div>
+      <div class="agent-controls">
+        <input type="text" class="agent-prompt-input" id="prompt-codex" placeholder="Codex에게 지시..." />
+        <button class="btn btn-send" onclick="sendPrompt('codex')">전송</button>
+        <button class="btn btn-pause" onclick="sendCmd('pause','codex')">⏸</button>
+        <button class="btn btn-cancel" onclick="sendCmd('cancel','codex')">✕</button>
+      </div>
+    </div>
+
+    <div class="agent-card" id="card-gemini">
+      <div class="agent-header">
+        <div class="agent-icon gemini">G</div>
+        <div class="agent-name">Gemini</div>
+        <div class="status-badge pending" id="status-gemini">대기</div>
+      </div>
+      <div class="agent-meta">
+        <span class="meta-label">작업</span>
+        <span class="meta-value" id="task-gemini">—</span>
+        <span class="meta-label">경과시간</span>
+        <span class="meta-value" id="elapsed-gemini">0.0s</span>
+        <span class="meta-label">비용</span>
+        <span class="meta-value" id="cost-gemini">$0.000</span>
+        <span class="meta-label">출력</span>
+        <span class="meta-value" id="file-gemini">—</span>
+      </div>
+      <div class="agent-output" id="output-gemini">응답 대기 중...</div>
+      <div class="agent-controls">
+        <input type="text" class="agent-prompt-input" id="prompt-gemini" placeholder="Gemini에게 지시..." />
+        <button class="btn btn-send" onclick="sendPrompt('gemini')">전송</button>
+        <button class="btn btn-pause" onclick="sendCmd('pause','gemini')">⏸</button>
+        <button class="btn btn-cancel" onclick="sendCmd('cancel','gemini')">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Area -->
+  <div class="main-area" style="display:flex;flex-direction:column;">
+    <div class="main-tabs">
+      <div class="main-tab active" data-tab="flow" onclick="switchTab('flow')">흐름도</div>
+      <div class="main-tab" data-tab="debate" onclick="switchTab('debate')">토론</div>
+      <div class="main-tab" data-tab="tasks" onclick="switchTab('tasks')">태스크 보드</div>
+      <div class="main-tab" data-tab="models" onclick="switchTab('models')">모델 관리</div>
+    </div>
+    <div class="tab-content active" id="tab-flow" style="align-items:center;justify-content:center;">
+    <div class="flow-diagram">
+      <!-- User input node -->
+      <div class="flow-node" id="flow-input" data-status="pending">
+        <div class="flow-node-icon">📝</div>
+        <div class="flow-node-label">입력</div>
+        <div class="flow-node-sub">사용자 프롬프트</div>
+      </div>
+
+      <div class="flow-arrow">
+        <div class="flow-arrow-line"></div>
+        <div class="flow-arrow-head"></div>
+      </div>
+
+      <!-- 3 agents side by side -->
+      <div class="flow-side-group">
+        <div class="flow-branch">
+          <div class="flow-node" id="flow-claude" data-status="pending">
+            <div class="flow-node-icon" style="color: var(--claude-color);">●</div>
+            <div class="flow-node-label">Claude</div>
+            <div class="flow-node-sub" id="flow-claude-sub">대기</div>
+          </div>
+        </div>
+
+        <div class="flow-branch">
+          <div class="flow-node" id="flow-codex" data-status="pending">
+            <div class="flow-node-icon" style="color: var(--codex-color);">●</div>
+            <div class="flow-node-label">Codex</div>
+            <div class="flow-node-sub" id="flow-codex-sub">대기</div>
+          </div>
+        </div>
+
+        <div class="flow-branch">
+          <div class="flow-node" id="flow-gemini" data-status="pending">
+            <div class="flow-node-icon" style="color: var(--gemini-color);">●</div>
+            <div class="flow-node-label">Gemini</div>
+            <div class="flow-node-sub" id="flow-gemini-sub">대기</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <div class="flow-arrow-line"></div>
+        <div class="flow-arrow-head"></div>
+      </div>
+
+      <!-- Merge node -->
+      <div class="flow-node" id="flow-merge" data-status="pending">
+        <div class="flow-node-icon">🔀</div>
+        <div class="flow-node-label">병합</div>
+        <div class="flow-node-sub">결과 통합</div>
+      </div>
+    </div>
+
+    </div>
+    <div class="tab-content" id="tab-debate" style="position:relative;">
+      <div class="consensus-meter">
+        <span>합의도</span>
+        <div class="consensus-bar">
+          <div class="consensus-fill" id="consensusFill" style="width:0%"></div>
+        </div>
+        <span id="consensusPercent">0%</span>
+      </div>
+      <div class="debate-timeline" id="debateTimeline">
+        <div style="color:var(--text-muted);text-align:center;padding:40px;font-size:12px;">
+          토론이 시작되지 않았습니다.<br>상단의 [토론 시작] 버튼을 사용하세요.
+        </div>
+      </div>
+      <div class="debate-input-bar">
+        <input type="text" id="debateInput" placeholder="토론에 의견을 추가..." />
+        <button class="btn btn-send" onclick="sendDebateInput()">전송</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-tasks">
+      <div class="task-board" id="taskBoard">
+        <div class="task-column" data-status="pending">
+          <div class="task-column-header">
+            대기 <span class="task-column-count" id="count-pending">0</span>
+          </div>
+          <div class="task-column-body" id="col-pending"></div>
+        </div>
+        <div class="task-column" data-status="working">
+          <div class="task-column-header">
+            진행중 <span class="task-column-count" id="count-working">0</span>
+          </div>
+          <div class="task-column-body" id="col-working"></div>
+        </div>
+        <div class="task-column" data-status="done">
+          <div class="task-column-header">
+            완료 <span class="task-column-count" id="count-done">0</span>
+          </div>
+          <div class="task-column-body" id="col-done"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-models">
+      <div class="new-model-banner" id="newModelBanner" style="display:none;">
+        <span>🆕</span>
+        <span id="newModelText">새 모델이 감지되었습니다</span>
+        <span class="dismiss" onclick="this.parentElement.style.display='none'">✕</span>
+      </div>
+
+      <div class="model-grid" id="modelGrid">
+        <div style="color:var(--text-muted);padding:20px;font-size:12px;">
+          모델 정보를 불러오는 중...
+        </div>
+      </div>
+
+      <div class="routing-section">
+        <h3>작업별 모델 라우팅</h3>
+        <div id="routingRules"></div>
+      </div>
+
+      <div class="budget-controls">
+        <h3>비용 한도 설정</h3>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">세션 한도</span>
+          <input type="range" class="budget-slider" id="sliderSession" min="1" max="50" step="0.5" value="5" oninput="updateBudgetSlider('session',this.value)">
+          <span class="budget-slider-value" id="valSession">$5.0</span>
+        </div>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">일일 한도</span>
+          <input type="range" class="budget-slider" id="sliderDaily" min="5" max="100" step="1" value="20" oninput="updateBudgetSlider('daily',this.value)">
+          <span class="budget-slider-value" id="valDaily">$20</span>
+        </div>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">Opus 호출 제한</span>
+          <input type="range" class="budget-slider" id="sliderOpus" min="10" max="200" step="5" value="50" oninput="updateBudgetSlider('opus',this.value)">
+          <span class="budget-slider-value" id="valOpus">50</span>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-send" onclick="saveBudget()">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-watermark">LLMTrio v1.0</div>
+  </div>
+
+  <!-- First Run Overlay -->
+  <div class="first-run-overlay" id="firstRunOverlay" style="display:none;">
+    <div class="first-run-modal">
+      <h2>LLMTrio 첫 실행 설정</h2>
+      <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13px;">
+        Gemini가 최신 AI 코딩 모델을 검색했습니다. 아래 설정을 확인하세요.
+      </p>
+      <div id="firstRunModels" style="margin-bottom:16px;"></div>
+      <div id="firstRunRouting" style="margin-bottom:16px;"></div>
+      <div class="first-run-actions">
+        <button class="btn" onclick="dismissFirstRun()">수정</button>
+        <button class="btn-primary" onclick="confirmFirstRun()">이대로 설정</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar">
+    <div class="cost-section">
+      <span class="cost-label">총 비용</span>
+      <span class="cost-value" id="totalCost">$0.000</span>
+    </div>
+
+    <div class="cost-breakdown">
+      <div class="cost-model">
+        <span class="cost-dot claude"></span>
+        <span class="cost-label">Claude</span>
+        <span class="cost-model-value" id="costClaude">$0.000</span>
+      </div>
+      <div class="cost-model">
+        <span class="cost-dot codex"></span>
+        <span class="cost-label">Codex</span>
+        <span class="cost-model-value" id="costCodex">$0.000</span>
+      </div>
+      <div class="cost-model">
+        <span class="cost-dot gemini"></span>
+        <span class="cost-label">Gemini</span>
+        <span class="cost-model-value" id="costGemini">$0.000</span>
+      </div>
+    </div>
+
+    <div class="budget-section">
+      <span class="cost-label">예산</span>
+      <div class="budget-bar-track">
+        <div class="budget-bar-fill" id="budgetFill"></div>
+      </div>
+      <span class="budget-percent" id="budgetPercent">0%</span>
+    </div>
+
+    <div class="opus-counter">
+      <span>Opus 호출</span>
+      <span class="opus-counter-value" id="opusCount">0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── State ──
+  const state = {
+    agents: {
+      claude: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
+      codex:  { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
+      gemini: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
+    },
+    cost: { total: 0, claude: 0, codex: 0, gemini: 0, budget: 5.0, opusCalls: 0 },
+    phase: 'discover',
+    sseConnected: false,
+  };
+
+  const STATUS_LABELS = {
+    pending: '대기',
+    working: '작업중',
+    done: '완료',
+    error: '오류',
+    cancelled: '취소',
+  };
+
+  // ── DOM refs ──
+  const $ = (id) => document.getElementById(id);
+
+  // ── Throttled render via rAF ──
+  let renderQueued = false;
+  function queueRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      render();
+    });
+  }
+
+  // ── Render ──
+  function render() {
+    for (const agent of ['claude', 'codex', 'gemini']) {
+      const a = state.agents[agent];
+
+      // Status badge
+      const badge = $(`status-${agent}`);
+      badge.className = `status-badge ${a.status}`;
+      badge.textContent = STATUS_LABELS[a.status] || a.status;
+
+      // Meta
+      $(`task-${agent}`).textContent = a.task || '—';
+      $(`cost-${agent}`).textContent = formatCost(a.cost);
+      $(`file-${agent}`).textContent = a.file || '—';
+
+      // Output (auto-scroll)
+      const outputEl = $(`output-${agent}`);
+      const wasAtBottom = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
+      outputEl.textContent = a.output || '응답 대기 중...';
+      if (wasAtBottom) {
+        outputEl.scrollTop = outputEl.scrollHeight;
+      }
+
+      // Flow diagram node
+      const flowNode = $(`flow-${agent}`);
+      if (flowNode) flowNode.dataset.status = a.status;
+      const flowSub = $(`flow-${agent}-sub`);
+      if (flowSub) flowSub.textContent = a.task || STATUS_LABELS[a.status];
+    }
+
+    // Cost meter
+    $('totalCost').textContent = formatCost(state.cost.total);
+    $('costClaude').textContent = formatCost(state.cost.claude);
+    $('costCodex').textContent = formatCost(state.cost.codex);
+    $('costGemini').textContent = formatCost(state.cost.gemini);
+    $('opusCount').textContent = state.cost.opusCalls;
+
+    // Budget bar
+    const pct = state.cost.budget > 0
+      ? Math.min((state.cost.total / state.cost.budget) * 100, 100)
+      : 0;
+    const fill = $('budgetFill');
+    fill.style.width = pct + '%';
+    fill.className = 'budget-bar-fill' +
+      (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
+    $('budgetPercent').textContent = Math.round(pct) + '%';
+
+    // Phase bar
+    renderPhase();
+
+    // SSE indicator
+    const ind = $('sseIndicator');
+    ind.className = 'sse-indicator' + (state.sseConnected ? ' connected' : '');
+  }
+
+  function renderPhase() {
+    const phases = ['discover', 'define', 'develop', 'deliver'];
+    const idx = phases.indexOf(state.phase);
+    const steps = document.querySelectorAll('.phase-step');
+    const connectors = document.querySelectorAll('.phase-connector');
+
+    steps.forEach((step, i) => {
+      step.classList.remove('active', 'completed');
+      if (i < idx) step.classList.add('completed');
+      else if (i === idx) step.classList.add('active');
+    });
+
+    connectors.forEach((conn, i) => {
+      conn.classList.toggle('completed', i < idx);
+    });
+  }
+
+  function formatCost(val) {
+    return '$' + (val || 0).toFixed(3);
+  }
+
+  // ── Elapsed time ticker ──
+  function tickElapsed() {
+    const now = Date.now();
+    for (const agent of ['claude', 'codex', 'gemini']) {
+      const a = state.agents[agent];
+      if (a.status === 'working' && a.startedAt) {
+        const secs = (now - a.startedAt) / 1000;
+        $(`elapsed-${agent}`).textContent = formatElapsed(secs);
+      }
+    }
+    requestAnimationFrame(tickElapsed);
+  }
+
+  function formatElapsed(secs) {
+    if (secs < 60) return secs.toFixed(1) + 's';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return m + 'm ' + s + 's';
+  }
+
+  // ── Clock ──
+  function tickClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    $('topbarClock').textContent = hh + ':' + mm + ':' + ss;
+  }
+
+  // ── Update functions ──
+  function updateAgentCard(agent, data) {
+    const a = state.agents[agent];
+    if (!a) return;
+
+    if (data.status !== undefined) {
+      if (data.status === 'working' && a.status !== 'working') {
+        a.startedAt = Date.now();
+      }
+      if (data.status !== 'working' && a.status === 'working' && a.startedAt) {
+        a.elapsed = (Date.now() - a.startedAt) / 1000;
+        $(`elapsed-${agent}`).textContent = formatElapsed(a.elapsed);
+        a.startedAt = null;
+      }
+      a.status = data.status;
+    }
+    if (data.task !== undefined) a.task = data.task;
+    if (data.cost !== undefined) a.cost = data.cost;
+    if (data.output !== undefined) a.output = data.output;
+    if (data.outputAppend !== undefined) a.output += data.outputAppend;
+    if (data.file !== undefined) a.file = data.file;
+    if (data.elapsed !== undefined) {
+      a.elapsed = data.elapsed;
+      $(`elapsed-${agent}`).textContent = formatElapsed(data.elapsed);
+    }
+
+    queueRender();
+  }
+
+  function updateCostMeter(data) {
+    if (data.total !== undefined) state.cost.total = data.total;
+    if (data.claude !== undefined) state.cost.claude = data.claude;
+    if (data.codex !== undefined) state.cost.codex = data.codex;
+    if (data.gemini !== undefined) state.cost.gemini = data.gemini;
+    if (data.budget !== undefined) state.cost.budget = data.budget;
+    if (data.opusCalls !== undefined) state.cost.opusCalls = data.opusCalls;
+
+    queueRender();
+  }
+
+  function applyFullState(fullState) {
+    if (fullState.agents) {
+      for (const [agent, data] of Object.entries(fullState.agents)) {
+        if (state.agents[agent]) {
+          Object.assign(state.agents[agent], data);
+        }
+      }
+    }
+    if (fullState.cost) {
+      Object.assign(state.cost, fullState.cost);
+    }
+    if (fullState.phase) {
+      state.phase = fullState.phase;
+    }
+    queueRender();
+  }
+
+  // ── SSE ──
+  let eventSource = null;
+  let reconnectTimer = null;
+
+  function connectSSE() {
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    eventSource = new EventSource('/events');
+
+    eventSource.onopen = () => {
+      state.sseConnected = true;
+      queueRender();
+    };
+
+    eventSource.addEventListener('agent-update', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        updateAgentCard(data.agent, data);
+      } catch (err) {
+        console.error('agent-update parse error:', err);
+      }
+    });
+
+    eventSource.addEventListener('cost-update', (e) => {
+      try {
+        updateCostMeter(JSON.parse(e.data));
+      } catch (err) {
+        console.error('cost-update parse error:', err);
+      }
+    });
+
+    eventSource.addEventListener('phase-update', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.phase) {
+          state.phase = data.phase;
+          queueRender();
+        }
+      } catch (err) {
+        console.error('phase-update parse error:', err);
+      }
+    });
+
+    eventSource.onerror = () => {
+      state.sseConnected = false;
+      queueRender();
+      eventSource.close();
+      eventSource = null;
+
+      // Reconnect with backoff
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        connectSSE();
+        fetchFullState();
+      }, 3000);
+    };
+  }
+
+  function fetchFullState() {
+    fetch('/api/state')
+      .then((res) => {
+        if (!res.ok) throw new Error('state fetch failed');
+        return res.json();
+      })
+      .then((data) => applyFullState(data))
+      .catch(() => {});
+  }
+
+  // ── Phase 2: Command API ──
+  function postCommand(cmd) {
+    return fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd),
+    }).then(r => r.json());
+  }
+
+  // Exposed to global scope for onclick handlers
+  window.sendPrompt = function(agent) {
+    const input = $('prompt-' + agent);
+    const text = input.value.trim();
+    if (!text) return;
+    postCommand({ type: 'prompt', target: agent, content: text });
+    input.value = '';
+  };
+
+  window.sendCmd = function(type, agent) {
+    postCommand({ type: type, target: agent });
+  };
+
+  // ── Phase 2: Tab Switching ──
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.main-tab[data-tab="${tabId}"]`).classList.add('active');
+    $('tab-' + tabId).classList.add('active');
+  };
+
+  // ── Phase 2: Debate ──
+  const debateMessages = [];
+
+  window.startDebate = function() {
+    switchTab('debate');
+  };
+
+  window.sendDebateInput = function() {
+    const input = $('debateInput');
+    const text = input.value.trim();
+    if (!text) return;
+    postCommand({ type: 'debate-input', content: text });
+    appendDebateBubble({ sender: 'user', agent: 'user', content: text });
+    input.value = '';
+  };
+
+  function appendDebateBubble(data) {
+    const timeline = $('debateTimeline');
+    // Remove placeholder
+    if (debateMessages.length === 0) {
+      timeline.innerHTML = '';
+    }
+    debateMessages.push(data);
+    const bubble = document.createElement('div');
+    const agent = data.agent || data.sender || 'user';
+    bubble.className = 'debate-bubble ' + agent;
+    bubble.innerHTML = '<div class="debate-sender">' + agent + '</div>' + escapeHtml(data.content || data.message || '');
+    timeline.appendChild(bubble);
+    timeline.scrollTop = timeline.scrollHeight;
+  }
+
+  // Listen for debate SSE
+  // (will be wired up in SSE section)
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ── Phase 2: Task Board ──
+  let tasks = [];
+
+  function renderTaskBoard() {
+    const pending = tasks.filter(t => t.status === 'pending' || t.status === 'approved');
+    const working = tasks.filter(t => t.status === 'working');
+    const done = tasks.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'cancelled');
+
+    renderTaskColumn('pending', pending);
+    renderTaskColumn('working', working);
+    renderTaskColumn('done', done);
+  }
+
+  function renderTaskColumn(colId, items) {
+    const body = $('col-' + colId);
+    $('count-' + colId).textContent = items.length;
+    body.innerHTML = items.map(t => `
+      <div class="task-card" draggable="true" data-task-id="${t.id}"
+           ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)">
+        <div class="task-card-header">
+          <span class="task-card-name">${escapeHtml(t.name || t.id)}</span>
+          <span class="task-card-agent ${t.agent || ''}">${t.agent || '—'}</span>
+        </div>
+        <div class="task-card-meta">
+          ${formatElapsed(t.elapsed)} · ${formatCost(t.cost || 0)}
+          ${t.status === 'done' ? ' <button class="btn btn-approve" style="padding:2px 6px;font-size:10px;" onclick="approveTask(\'' + t.id + '\')">승인</button> <button class="btn btn-reject" style="padding:2px 6px;font-size:10px;" onclick="rejectTask(\'' + t.id + '\')">거절</button>' : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Drag and drop
+  let draggedTaskId = null;
+
+  window.onDragStart = function(e, taskId) {
+    draggedTaskId = taskId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  window.onDragEnd = function(e) {
+    e.target.classList.remove('dragging');
+    draggedTaskId = null;
+    document.querySelectorAll('.task-column-body').forEach(el => el.classList.remove('drag-over'));
+  };
+
+  // Set up drop zones
+  function initDragDrop() {
+    document.querySelectorAll('.task-column-body').forEach(col => {
+      col.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        col.classList.add('drag-over');
+      });
+      col.addEventListener('dragleave', () => {
+        col.classList.remove('drag-over');
+      });
+      col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        col.classList.remove('drag-over');
+        if (!draggedTaskId) return;
+        const targetStatus = col.parentElement.dataset.status;
+        const task = tasks.find(t => t.id === draggedTaskId);
+        if (task && task.agent) {
+          postCommand({ type: 'reassign', taskId: draggedTaskId, target: task.agent, newStatus: targetStatus });
+        }
+      });
+    });
+  }
+
+  window.approveTask = function(taskId) {
+    postCommand({ type: 'approve', taskId: taskId });
+  };
+
+  window.rejectTask = function(taskId) {
+    const reason = prompt('거절 사유를 입력하세요:');
+    if (reason !== null) {
+      postCommand({ type: 'reject', taskId: taskId, content: reason });
+    }
+  };
+
+  // Enter key support for prompt inputs
+  function initPromptInputs() {
+    for (const agent of ['claude', 'codex', 'gemini']) {
+      const input = $('prompt-' + agent);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          window.sendPrompt(agent);
+        }
+      });
+    }
+    $('debateInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        window.sendDebateInput();
+      }
+    });
+  }
+
+  // Update SSE to handle debate + task events
+  function handleDebateUpdate(data) {
+    appendDebateBubble(data);
+    if (data.consensus !== undefined) {
+      $('consensusFill').style.width = (data.consensus * 100) + '%';
+      $('consensusPercent').textContent = Math.round(data.consensus * 100) + '%';
+    }
+  }
+
+  function handleTasksUpdate(data) {
+    if (Array.isArray(data.tasks)) {
+      tasks = data.tasks;
+    } else if (Array.isArray(data)) {
+      tasks = data;
+    }
+    renderTaskBoard();
+  }
+
+  // Patch SSE to add debate-update listener
+  const origConnectSSE = connectSSE;
+  connectSSE = function() {
+    origConnectSSE();
+    if (eventSource) {
+      eventSource.addEventListener('debate-update', (e) => {
+        try { handleDebateUpdate(JSON.parse(e.data)); } catch {}
+      });
+      eventSource.addEventListener('tasks-update', (e) => {
+        try { handleTasksUpdate(JSON.parse(e.data)); } catch {}
+      });
+    }
+  };
+
+  // Also update applyFullState to handle tasks
+  const origApplyFullState = applyFullState;
+  applyFullState = function(fullState) {
+    origApplyFullState(fullState);
+    if (fullState.tasks) {
+      tasks = fullState.tasks;
+      renderTaskBoard();
+    }
+  };
+
+  // ── Phase 3: Model Management ──
+  let models = [];
+  let routing = {};
+  let budget = { session_limit: 5, daily_limit: 20, opus_call_limit: 50, warn_at: 0.8 };
+
+  function loadModels() {
+    fetch('/api/models')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.models) {
+          models = data.models;
+          renderModelGrid();
+        }
+      })
+      .catch(() => {});
+  }
+
+  function loadRouting() {
+    fetch('/api/routing')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.rules) {
+          routing = data.rules;
+          renderRoutingRules();
+        }
+      })
+      .catch(() => {});
+  }
+
+  function loadBudget() {
+    fetch('/api/budget')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          budget = data;
+          state.cost.budget = data.session_limit || 5;
+          $('sliderSession').value = data.session_limit || 5;
+          $('valSession').textContent = '$' + (data.session_limit || 5);
+          $('sliderDaily').value = data.daily_limit || 20;
+          $('valDaily').textContent = '$' + (data.daily_limit || 20);
+          $('sliderOpus').value = data.opus_call_limit || 50;
+          $('valOpus').textContent = data.opus_call_limit || 50;
+          queueRender();
+        }
+      })
+      .catch(() => {});
+  }
+
+  function renderModelGrid() {
+    const grid = $('modelGrid');
+    if (!models.length) {
+      grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;font-size:12px;">모델 정보가 없습니다. model-checker.sh 실행 필요.</div>';
+      return;
+    }
+    grid.innerHTML = models.map(m => `
+      <div class="model-card">
+        <div class="model-card-header">
+          <div>
+            <div class="model-card-name">${escapeHtml(m.name || m.id)}</div>
+            <span class="model-card-provider">${escapeHtml(m.provider || '')}</span>
+          </div>
+          ${m.tier ? '<span class="model-tier ' + m.tier + '">' + m.tier + '</span>' : ''}
+        </div>
+        <div class="model-card-strengths">
+          ${(m.strengths || []).map(s => '<span class="strength-tag">' + escapeHtml(s) + '</span>').join('')}
+        </div>
+        <div class="model-card-pricing">
+          ${m.pricing ? '<span>입력 $' + m.pricing.input + '/1M</span><span>출력 $' + m.pricing.output + '/1M</span>' : ''}
+        </div>
+        ${m.benchmarks ? '<div class="model-card-benchmarks">코딩 ' + (m.benchmarks.coding || '—') + ' · 추론 ' + (m.benchmarks.reasoning || '—') + '</div>' : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderRoutingRules() {
+    const container = $('routingRules');
+    const taskLabels = {
+      architecture: '아키텍처',
+      implementation: '구현',
+      testing: '테스트',
+      research: '리서치',
+      'code-review': '코드리뷰',
+      documentation: '문서',
+    };
+    const modelOptions = models.length > 0
+      ? models.map(m => m.id)
+      : ['claude-opus-4.6', 'gpt-5.3-codex', 'gemini-2.5-pro'];
+
+    container.innerHTML = Object.entries(routing).map(([task, model]) => `
+      <div class="routing-row">
+        <span class="routing-task-label">${taskLabels[task] || task}</span>
+        <select class="routing-select" data-task="${task}" onchange="updateRouting('${task}',this.value)">
+          ${modelOptions.map(m => '<option value="' + m + '"' + (m === model ? ' selected' : '') + '>' + m + '</option>').join('')}
+        </select>
+      </div>
+    `).join('');
+  }
+
+  window.updateRouting = function(task, model) {
+    routing[task] = model;
+    postCommand({ type: 'update-routing', content: JSON.stringify({ rules: routing }) });
+  };
+
+  window.updateBudgetSlider = function(type, val) {
+    if (type === 'session') {
+      $('valSession').textContent = '$' + parseFloat(val).toFixed(1);
+    } else if (type === 'daily') {
+      $('valDaily').textContent = '$' + parseInt(val);
+    } else if (type === 'opus') {
+      $('valOpus').textContent = val;
+    }
+  };
+
+  window.saveBudget = function() {
+    const newBudget = {
+      session_limit: parseFloat($('sliderSession').value),
+      daily_limit: parseFloat($('sliderDaily').value),
+      opus_call_limit: parseInt($('sliderOpus').value),
+      warn_at: 0.8,
+    };
+    state.cost.budget = newBudget.session_limit;
+    postCommand({ type: 'update-budget', content: JSON.stringify(newBudget) });
+    queueRender();
+  };
+
+  // First run handling
+  window.confirmFirstRun = function() {
+    $('firstRunOverlay').style.display = 'none';
+  };
+
+  window.dismissFirstRun = function() {
+    $('firstRunOverlay').style.display = 'none';
+    switchTab('models');
+  };
+
+  function checkFirstRun() {
+    fetch('/api/state')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.firstRun) {
+          showFirstRunOverlay(data);
+        }
+      })
+      .catch(() => {});
+  }
+
+  function showFirstRunOverlay(data) {
+    $('firstRunOverlay').style.display = 'flex';
+    if (models.length > 0) {
+      $('firstRunModels').innerHTML = '<h3 style="font-size:13px;margin-bottom:8px;">감지된 모델</h3>' +
+        models.map(m => '<div style="padding:4px 0;font-size:12px;">' + escapeHtml(m.name || m.id) + ' (' + escapeHtml(m.provider || '') + ')</div>').join('');
+    }
+    if (Object.keys(routing).length > 0) {
+      $('firstRunRouting').innerHTML = '<h3 style="font-size:13px;margin-bottom:8px;">자동 배정 결과</h3>' +
+        Object.entries(routing).map(([k, v]) => '<div style="padding:4px 0;font-size:12px;display:flex;justify-content:space-between;"><span>' + k + '</span><span style="font-family:var(--font-mono)">' + v + '</span></div>').join('');
+    }
+  }
+
+  // SSE: new model alert
+  function handleModelAlert(data) {
+    if (data.newModels && data.newModels.length > 0) {
+      const banner = $('newModelBanner');
+      banner.style.display = 'flex';
+      $('newModelText').textContent = '새 모델 감지: ' + data.newModels.join(', ');
+      loadModels();
+    }
+  }
+
+  // ── Init ──
+  function init() {
+    render();
+    tickClock();
+    setInterval(tickClock, 1000);
+    requestAnimationFrame(tickElapsed);
+    connectSSE();
+    fetchFullState();
+    initDragDrop();
+    initPromptInputs();
+    loadModels();
+    loadRouting();
+    loadBudget();
+    checkFirstRun();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
