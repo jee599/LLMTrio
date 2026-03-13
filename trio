@@ -1,0 +1,73 @@
+#!/bin/bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export TRIO_DIR="$SCRIPT_DIR/.trio"
+
+mkdir -p "$TRIO_DIR/pids" "$TRIO_DIR/commands" "$TRIO_DIR/results"
+
+case "${1:-help}" in
+  start)
+    shift
+    # Start command-watcher in background
+    bash "$SCRIPT_DIR/scripts/command-watcher.sh" &
+    # Run model-checker
+    bash "$SCRIPT_DIR/scripts/model-checker.sh"
+    # Start octopus-core with the prompt
+    node "$SCRIPT_DIR/scripts/octopus-core.js" start "$@"
+    ;;
+  task)
+    shift
+    agent="${1:-claude}"
+    shift
+    node "$SCRIPT_DIR/scripts/octopus-core.js" task "$agent" "$@"
+    ;;
+  dashboard)
+    if [[ "${2:-}" == "stop" ]]; then
+      # Stop dashboard processes
+      for pidfile in "$TRIO_DIR"/pids/*.pid; do
+        [ -f "$pidfile" ] || continue
+        pid=$(cat "$pidfile")
+        kill -SIGTERM "$pid" 2>/dev/null && echo "Stopped $(basename "$pidfile" .pid) (PID $pid)"
+        rm -f "$pidfile"
+      done
+      echo "대시보드가 종료되었습니다."
+    else
+      # Start dashboard
+      node "$SCRIPT_DIR/scripts/dashboard-server.js" &
+      sleep 1
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        open http://localhost:3333
+      else
+        xdg-open http://localhost:3333 2>/dev/null || echo "http://localhost:3333"
+      fi
+      echo "대시보드가 열렸습니다. http://localhost:3333"
+    fi
+    ;;
+  status)
+    if [[ -f "$TRIO_DIR/state.json" ]]; then
+      cat "$TRIO_DIR/state.json" | python3 -m json.tool 2>/dev/null || cat "$TRIO_DIR/state.json"
+    else
+      echo "아직 실행 기록이 없습니다."
+    fi
+    ;;
+  stop)
+    for pidfile in "$TRIO_DIR"/pids/*.pid; do
+      [ -f "$pidfile" ] || continue
+      pid=$(cat "$pidfile")
+      kill -SIGTERM "$pid" 2>/dev/null && echo "Stopped $(basename "$pidfile" .pid) (PID $pid)"
+      rm -f "$pidfile"
+    done
+    echo "모든 프로세스가 종료되었습니다."
+    ;;
+  help|*)
+    echo "LLMTrio — Multi-LLM Orchestration"
+    echo ""
+    echo "Usage:"
+    echo "  ./trio start \"프롬프트\"     전체 워크플로우 시작"
+    echo "  ./trio task agent \"프롬프트\"  단일 에이전트 태스크"
+    echo "  ./trio dashboard            대시보드 열기"
+    echo "  ./trio dashboard stop       대시보드 종료"
+    echo "  ./trio status               현재 상태 보기"
+    echo "  ./trio stop                 모든 프로세스 종료"
+    ;;
+esac

@@ -6,7 +6,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+
 
 const HOST = '127.0.0.1';
 const PORT = 3333;
@@ -17,7 +17,7 @@ const PARSE_RETRY_MS = 100;
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TRIO_DIR = path.join(PROJECT_ROOT, '.trio');
 const PIDS_DIR = path.join(TRIO_DIR, 'pids');
-const RESULTS_DIR = path.join(os.homedir(), '.claude-octopus', 'results');
+const RESULTS_DIR = path.join(TRIO_DIR, 'results');
 const DASHBOARD_HTML = path.join(__dirname, 'dashboard.html');
 
 // --- State ---
