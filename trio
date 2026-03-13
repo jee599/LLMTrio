@@ -8,11 +8,8 @@ mkdir -p "$TRIO_DIR/pids" "$TRIO_DIR/commands" "$TRIO_DIR/results"
 case "${1:-help}" in
   start)
     shift
-    # Start command-watcher in background
     bash "$SCRIPT_DIR/scripts/command-watcher.sh" &
-    # Run model-checker
     bash "$SCRIPT_DIR/scripts/model-checker.sh"
-    # Start octopus-core with the prompt
     node "$SCRIPT_DIR/scripts/octopus-core.js" start "$@"
     ;;
   task)
@@ -23,16 +20,14 @@ case "${1:-help}" in
     ;;
   dashboard)
     if [[ "${2:-}" == "stop" ]]; then
-      # Stop dashboard processes
       for pidfile in "$TRIO_DIR"/pids/*.pid; do
         [ -f "$pidfile" ] || continue
         pid=$(cat "$pidfile")
         kill -SIGTERM "$pid" 2>/dev/null && echo "Stopped $(basename "$pidfile" .pid) (PID $pid)"
         rm -f "$pidfile"
       done
-      echo "대시보드가 종료되었습니다."
+      echo "Dashboard stopped."
     else
-      # Start dashboard
       node "$SCRIPT_DIR/scripts/dashboard-server.js" &
       sleep 1
       if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -40,15 +35,73 @@ case "${1:-help}" in
       else
         xdg-open http://localhost:3333 2>/dev/null || echo "http://localhost:3333"
       fi
-      echo "대시보드가 열렸습니다. http://localhost:3333"
+      echo "Dashboard is running at http://localhost:3333"
     fi
     ;;
   status)
     if [[ -f "$TRIO_DIR/state.json" ]]; then
       cat "$TRIO_DIR/state.json" | python3 -m json.tool 2>/dev/null || cat "$TRIO_DIR/state.json"
     else
-      echo "아직 실행 기록이 없습니다."
+      echo "No workflow has been run yet."
     fi
+    ;;
+  login)
+    echo "=== LLMTrio — CLI Authentication Status ==="
+    echo ""
+
+    # Claude
+    echo -n "Claude ... "
+    if command -v claude &>/dev/null; then
+      claude_ver="$(claude --version 2>/dev/null | head -1 || echo "unknown")"
+      if [[ -f "$HOME/.claude/.credentials.json" ]] || [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+        echo "✓ Authenticated ($claude_ver)"
+      else
+        echo "Installed ($claude_ver), login required"
+        if [[ -n "${CLAUDECODE:-}" ]]; then
+          echo "  → Cannot login inside a Claude Code session."
+          echo "  → Run in a separate terminal: claude login"
+        else
+          echo "  → Running claude login..."
+          claude login
+        fi
+      fi
+    else
+      echo "✗ Not installed"
+      echo "  → npm install -g @anthropic-ai/claude-code"
+    fi
+    echo ""
+
+    # Codex
+    echo -n "Codex ... "
+    if command -v codex &>/dev/null; then
+      echo "✓ Installed ($(codex --version 2>/dev/null | head -1))"
+      echo "  Codex authenticates via OPENAI_API_KEY environment variable."
+      if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+        echo "  → OPENAI_API_KEY is set ✓"
+      else
+        echo "  → OPENAI_API_KEY is not set ✗"
+        echo "  → Run: export OPENAI_API_KEY=\"sk-...\""
+      fi
+    else
+      echo "✗ Not installed"
+      echo "  → npm install -g @openai/codex"
+    fi
+    echo ""
+
+    # Gemini
+    echo -n "Gemini ... "
+    if command -v gemini &>/dev/null; then
+      echo "✓ Installed"
+      echo "  → Running gemini login..."
+      gemini auth login 2>/dev/null || gemini login 2>/dev/null || echo "  Manual login required: gemini auth login"
+    else
+      echo "✗ Not installed (optional)"
+      echo "  → npm install -g @google/gemini-cli"
+      echo "  → LLMTrio works with Claude + Codex alone."
+    fi
+    echo ""
+    echo "=== Done ==="
+    echo "Ready to go: ./trio start \"your prompt\""
     ;;
   stop)
     for pidfile in "$TRIO_DIR"/pids/*.pid; do
@@ -57,17 +110,18 @@ case "${1:-help}" in
       kill -SIGTERM "$pid" 2>/dev/null && echo "Stopped $(basename "$pidfile" .pid) (PID $pid)"
       rm -f "$pidfile"
     done
-    echo "모든 프로세스가 종료되었습니다."
+    echo "All processes stopped."
     ;;
   help|*)
     echo "LLMTrio — Multi-LLM Orchestration"
     echo ""
     echo "Usage:"
-    echo "  ./trio start \"프롬프트\"     전체 워크플로우 시작"
-    echo "  ./trio task agent \"프롬프트\"  단일 에이전트 태스크"
-    echo "  ./trio dashboard            대시보드 열기"
-    echo "  ./trio dashboard stop       대시보드 종료"
-    echo "  ./trio status               현재 상태 보기"
-    echo "  ./trio stop                 모든 프로세스 종료"
+    echo "  ./trio login                Check CLI auth status & login"
+    echo "  ./trio start \"prompt\"       Start full workflow"
+    echo "  ./trio task agent \"prompt\"   Run single agent task"
+    echo "  ./trio dashboard            Open dashboard"
+    echo "  ./trio dashboard stop       Stop dashboard"
+    echo "  ./trio status               Show current state"
+    echo "  ./trio stop                 Stop all processes"
     ;;
 esac

@@ -64,7 +64,7 @@ if [[ ! -f "$MODELS_JSON" ]]; then
   # Copy default budget
   cp "$PROJECT_ROOT/config/default-budget.json" "$BUDGET_JSON"
 
-  echo "첫 실행 초기화 완료"
+  echo "First run initialization complete"
 else
   # Compare: find new model names not in existing
   existing_names="$(jq -r '.[].name // empty' "$MODELS_JSON" 2>/dev/null || echo "")"
@@ -79,7 +79,7 @@ else
   done <<< "$new_names"
 
   if [[ -n "$added" ]]; then
-    echo "새 모델 감지: [$added]"
+    echo "New models detected: [$added]"
   fi
 fi
 
