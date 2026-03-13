@@ -1,10 +1,10 @@
 {
   "rules": {
     "architecture": "claude-opus-4.6",
-    "implementation": "gpt-5.3-codex",
-    "testing": "gpt-5.3-codex",
-    "research": "gemini-2.5-pro",
+    "implementation": "gpt-5.4-codex",
+    "testing": "gpt-5.4-codex",
+    "research": "gemini-3.1-pro",
     "code-review": "claude-opus-4.6",
-    "documentation": "gemini-2.5-pro"
+    "documentation": "gemini-3.1-pro"
   }
 }
