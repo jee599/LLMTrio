@@ -173,6 +173,10 @@ function handleRequest(req, res) {
     serveJson(res, path.join(TRIO_DIR, 'budget.json'));
   } else if (req.method === 'POST' && pathname === '/api/command') {
     receiveCommand(req, res);
+  } else if (req.method === 'GET' && pathname === '/api/auth-status') {
+    serveAuthStatus(res);
+  } else if (req.method === 'POST' && pathname === '/api/save-key') {
+    saveApiKey(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -227,6 +231,95 @@ function appendToPending(cmd) {
   const tmpFile = PENDING_FILE + '.tmp';
   fs.writeFileSync(tmpFile, JSON.stringify(pending, null, 2), 'utf8');
   fs.renameSync(tmpFile, PENDING_FILE);
+}
+
+// --- GET /api/auth-status ---
+
+const { execSync } = require('child_process');
+
+function checkCli(cmd) {
+  try {
+    const p = execSync(`which ${cmd}`, { stdio: 'pipe' }).toString().trim();
+    let version = '';
+    try { version = execSync(`${cmd} --version`, { stdio: 'pipe' }).toString().trim().split('\n')[0]; } catch {}
+    return { installed: true, path: p, version };
+  } catch {
+    return { installed: false };
+  }
+}
+
+function serveAuthStatus(res) {
+  const envFile = path.join(TRIO_DIR, '.env');
+  let savedKeys = {};
+  try {
+    const raw = fs.readFileSync(envFile, 'utf8');
+    for (const line of raw.split('\n')) {
+      const m = line.match(/^([A-Z_]+)=(.+)$/);
+      if (m) savedKeys[m[1]] = m[2];
+    }
+  } catch {}
+
+  const claude = checkCli('claude');
+  const codex = checkCli('codex');
+  const gemini = checkCli('gemini');
+
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  const claudeAuth = fs.existsSync(path.join(home, '.claude', '.credentials.json'))
+    || !!process.env.ANTHROPIC_API_KEY || !!savedKeys.ANTHROPIC_API_KEY;
+  const codexAuth = !!process.env.OPENAI_API_KEY || !!savedKeys.OPENAI_API_KEY;
+  const geminiAuth = !!process.env.GOOGLE_API_KEY || !!savedKeys.GOOGLE_API_KEY;
+
+  const status = {
+    claude: { ...claude, authenticated: claude.installed && claudeAuth },
+    codex:  { ...codex,  authenticated: codex.installed && codexAuth },
+    gemini: { ...gemini, authenticated: gemini.installed && geminiAuth },
+    ready: (claude.installed && claudeAuth) || (codex.installed && codexAuth),
+  };
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(status));
+}
+
+// --- POST /api/save-key ---
+
+function saveApiKey(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { provider, key } = JSON.parse(body);
+      const validProviders = {
+        anthropic: 'ANTHROPIC_API_KEY',
+        openai: 'OPENAI_API_KEY',
+        google: 'GOOGLE_API_KEY',
+      };
+      const envVar = validProviders[provider];
+      if (!envVar || !key) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid provider or key' }));
+        return;
+      }
+
+      // Save to .trio/.env
+      const envFile = path.join(TRIO_DIR, '.env');
+      let lines = [];
+      try { lines = fs.readFileSync(envFile, 'utf8').split('\n').filter(l => l.trim()); } catch {}
+      lines = lines.filter(l => !l.startsWith(envVar + '='));
+      lines.push(`${envVar}=${key}`);
+      const tmpEnv = envFile + '.tmp';
+      fs.writeFileSync(tmpEnv, lines.join('\n') + '\n', 'utf8');
+      fs.renameSync(tmpEnv, envFile);
+
+      // Also set in current process
+      process.env[envVar] = key;
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, saved: envVar }));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+  });
 }
 
 function serveHtml(res) {

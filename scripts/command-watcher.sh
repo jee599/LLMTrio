@@ -8,6 +8,11 @@ PID_FILE="$TRIO_DIR/pids/command-watcher.pid"
 STATE="$TRIO_DIR/state.json"
 VALID_TARGETS="claude codex gemini"
 
+# Load API keys from .trio/.env if exists
+if [[ -f "$TRIO_DIR/.env" ]]; then
+  set -a; source "$TRIO_DIR/.env"; set +a
+fi
+
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 cleanup() {

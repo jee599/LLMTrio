@@ -7,6 +7,17 @@ const path = require('path');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TRIO_DIR = path.join(PROJECT_ROOT, '.trio');
+
+// Load API keys from .trio/.env
+try {
+  const envFile = path.join(TRIO_DIR, '.env');
+  if (fs.existsSync(envFile)) {
+    for (const line of fs.readFileSync(envFile, 'utf8').split('\n')) {
+      const m = line.match(/^([A-Z_]+)=(.+)$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+    }
+  }
+} catch {}
 const RESULTS_DIR = path.join(TRIO_DIR, 'results');
 const PIDS_DIR = path.join(TRIO_DIR, 'pids');
 const PID_FILE = path.join(PIDS_DIR, 'octopus-core.pid');
