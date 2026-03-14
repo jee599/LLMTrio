@@ -359,7 +359,7 @@ function startWorkflow(prompt, opts = {}) {
       let changed = false;
       if (st.tasks) {
         for (const task of st.tasks) {
-          if (task.status === 'working' || (task.status === 'pending' && st.phase === 'complete')) {
+          if (task.status === 'working' || task.status === 'pending') {
             const rf = path.join(RESULTS_DIR, `${task.id}.json`);
             try {
               const result = JSON.parse(fs.readFileSync(rf, 'utf8'));
@@ -370,7 +370,12 @@ function startWorkflow(prompt, opts = {}) {
                 if (result.error) task.error = result.error;
                 changed = true;
               }
-            } catch {}
+            } catch {
+              // No result file — process died before completing this task
+              task.status = 'error';
+              task.error = code === 0 ? 'Process ended unexpectedly' : `Process crashed (exit ${code})`;
+              changed = true;
+            }
           }
         }
         if (changed || st.phase !== 'complete') {
