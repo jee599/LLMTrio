@@ -4117,7 +4117,9 @@
 
   function renderResultsPanel() {
     const panel = $('resultsPanel');
-    if (!tasks.length) {
+    // Only show tasks that have actually run (not pending)
+    const ranTasks = tasks.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'working');
+    if (!ranTasks.length) {
       panel.innerHTML = `<div class="results-empty">
         <div style="font-size:32px;opacity:0.3;">📄</div>
         <div>${tt('workflowResults')}</div>
@@ -4125,9 +4127,6 @@
       resultsSummaryLoaded = false;
       return;
     }
-
-    // Only show tasks that have actually run (not pending)
-    const ranTasks = tasks.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'working');
     const doneCount = ranTasks.filter(t => t.status === 'done').length;
     const errCount = ranTasks.filter(t => t.status === 'error').length;
     const workingCount = ranTasks.filter(t => t.status === 'working').length;

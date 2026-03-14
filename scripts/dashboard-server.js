@@ -136,21 +136,25 @@ function startWatcher() {
     console.error(`[watcher] failed to start: ${err.message}`);
   }
 
-  // Also watch state.json for workflow phase updates
+  // Watch state.json via polling (fs.watch breaks on atomic rename)
   const stateFile = path.join(TRIO_DIR, 'state.json');
-  let stateDebounce = null;
-  try {
-    stateWatcher = fs.watch(stateFile, () => {
-      if (stateDebounce) clearTimeout(stateDebounce);
-      stateDebounce = setTimeout(() => {
-        const data = parseJsonFileSync(stateFile);
-        if (data) broadcast('state-update', data);
-      }, DEBOUNCE_MS);
-    });
-    stateWatcher.on('error', () => {});
-  } catch {
-    // state.json may not exist yet
-  }
+  let lastStateMtime = 0;
+  let lastStateContent = '';
+  setInterval(() => {
+    try {
+      const stat = fs.statSync(stateFile);
+      const mtime = stat.mtimeMs;
+      if (mtime <= lastStateMtime) return;
+      lastStateMtime = mtime;
+      const raw = fs.readFileSync(stateFile, 'utf8');
+      if (raw === lastStateContent) return;
+      lastStateContent = raw;
+      try {
+        const data = JSON.parse(raw);
+        broadcast('state-update', data);
+      } catch {}
+    } catch {}
+  }, 300);
 }
 
 function handleResultsChange(filename) {
