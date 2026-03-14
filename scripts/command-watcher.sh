@@ -56,7 +56,14 @@ process_command() {
 
   case "$type" in
     prompt)
-      validate_target "$target" && send_prompt "$target" "$content"
+      # Skip workflow prompts — handled by dashboard-server → octopus-core
+      local is_workflow
+      is_workflow=$(echo "$1" | jq -r '.workflow // false')
+      if [[ "$is_workflow" == "true" ]]; then
+        log "Skipping workflow prompt (handled by octopus-core)"
+      else
+        validate_target "$target" && send_prompt "$target" "$content"
+      fi
       ;;
     pause)
       validate_target "$target" && pkill -STOP -f "$target" && log "Paused $target"
