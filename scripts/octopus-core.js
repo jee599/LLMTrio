@@ -300,13 +300,42 @@ async function runWorkflow(prompt, opts = {}) {
       task.elapsed = result.elapsed || 0;
       task.tokens = result.tokens || 0;
       if (result.error) task.error = result.error;
-      if (result.output) phaseOutputs.push(`[${task.name}]: ${result.output.slice(-500)}`);
+      if (result.output) phaseOutputs.push(`[${task.name}]: ${result.output.slice(-2000)}`);
       state.sessionTokens += task.tokens;
       saveState(state);
     }));
 
-    // Pass this phase's outputs to next phase
-    prevPhaseOutputs = phaseOutputs.join('\n\n');
+    // Save full plan results for execute phase context
+    if (phase === 'plan') {
+      const planSummary = {};
+      for (const task of phaseTasks) {
+        const resultFile = path.join(RESULTS_DIR, `${task.id}.json`);
+        const result = readJson(resultFile);
+        planSummary[task.name] = {
+          agent: task.agent,
+          model: task.model,
+          output: result?.output || '',
+          status: task.status,
+        };
+      }
+      writeJsonAtomic(path.join(TRIO_DIR, 'plan-summary.json'), planSummary);
+    }
+
+    // In execute phase, load plan summary for richer context
+    if (phase === 'execute') {
+      const planSummary = readJson(path.join(TRIO_DIR, 'plan-summary.json'));
+      if (planSummary) {
+        prevPhaseOutputs = Object.entries(planSummary)
+          .filter(([_, v]) => v.status === 'done' && v.output)
+          .map(([name, v]) => `[${name}]: ${v.output.slice(-2000)}`)
+          .join('\n\n');
+      }
+    }
+
+    // Pass this phase's outputs to next phase (fallback if no plan-summary)
+    if (!prevPhaseOutputs) {
+      prevPhaseOutputs = phaseOutputs.join('\n\n');
+    }
 
     const done = phaseTasks.filter((t) => t.status === 'done').length;
     const failed = phaseTasks.filter((t) => t.status === 'error').length;

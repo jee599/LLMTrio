@@ -232,7 +232,7 @@ function handleRequest(req, res) {
 
 const PENDING_FILE = path.join(TRIO_DIR, 'commands', 'pending.json');
 const VALID_TYPES = ['prompt','pause','cancel','approve','reject','reassign',
-  'update-routing','update-budget','debate-input','merge'];
+  'update-routing','update-budget','merge'];
 const VALID_TARGETS = ['claude','codex','gemini'];
 
 let workflowProc = null;

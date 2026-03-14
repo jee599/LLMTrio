@@ -8,8 +8,6 @@ mkdir -p "$TRIO_DIR/pids" "$TRIO_DIR/commands" "$TRIO_DIR/results"
 case "${1:-dashboard}" in
   start)
     shift
-    bash "$SCRIPT_DIR/scripts/command-watcher.sh" &
-    bash "$SCRIPT_DIR/scripts/model-checker.sh"
     node "$SCRIPT_DIR/scripts/octopus-core.js" start "$@"
     ;;
   task)

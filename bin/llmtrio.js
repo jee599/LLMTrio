@@ -32,10 +32,6 @@ switch (arg) {
   case 'start': {
     const prompt = process.argv.slice(3).join(' ');
     if (!prompt) { console.error('Usage: llmtrio start "prompt"'); process.exit(1); }
-    try {
-      execSync(`bash "${path.join(ROOT, 'scripts', 'command-watcher.sh')}" &`, { env: { ...process.env, TRIO_DIR }, stdio: 'ignore' });
-    } catch {}
-    execSync(`bash "${path.join(ROOT, 'scripts', 'model-checker.sh')}"`, { env: { ...process.env, TRIO_DIR }, stdio: 'inherit' });
     spawn('node', [path.join(ROOT, 'scripts', 'octopus-core.js'), 'start', ...process.argv.slice(3)], {
       env: { ...process.env, TRIO_DIR },
       stdio: 'inherit',

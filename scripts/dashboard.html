@@ -545,108 +545,6 @@
 
   .tab-content.active { display: flex; flex-direction: column; }
 
-  /* ── Phase 2: Debate View ── */
-  .debate-timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 60px;
-  }
-
-  .debate-bubble {
-    max-width: 75%;
-    padding: 12px 16px;
-    border-radius: var(--radius-lg);
-    font-size: 12px;
-    line-height: 1.6;
-    position: relative;
-    animation: slideUp 0.3s ease;
-  }
-
-  .debate-bubble.claude {
-    align-self: flex-start;
-    background: rgba(212,165,116,0.15);
-    border: 1px solid rgba(212,165,116,0.3);
-  }
-
-  .debate-bubble.codex {
-    align-self: center;
-    background: rgba(126,200,227,0.15);
-    border: 1px solid rgba(126,200,227,0.3);
-  }
-
-  .debate-bubble.gemini {
-    align-self: flex-end;
-    background: rgba(139,126,200,0.15);
-    border: 1px solid rgba(139,126,200,0.3);
-  }
-
-  .debate-bubble.user {
-    align-self: flex-end;
-    background: rgba(0,122,204,0.2);
-    border: 1px solid rgba(0,122,204,0.4);
-  }
-
-  .debate-sender {
-    font-weight: 600;
-    font-size: 11px;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-  }
-
-  .debate-input-bar {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-
-  .debate-input-bar input {
-    flex: 1;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 6px 10px;
-    color: var(--text-primary);
-    font-size: 12px;
-    outline: none;
-  }
-
-  .debate-input-bar input:focus { border-color: var(--accent-blue); }
-
-  .consensus-meter {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius);
-    font-size: 11px;
-    margin-bottom: 12px;
-  }
-
-  .consensus-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--bg-primary);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .consensus-fill {
-    height: 100%;
-    background: var(--accent-green);
-    border-radius: 3px;
-    transition: width 0.5s;
-  }
-
   /* ── Task Board — Linear/Jira-style Kanban ── */
   .kb {
     display: flex;
@@ -1229,88 +1127,6 @@
   .kb-empty-title { font-size: 16px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
   .kb-empty-sub { font-size: 13px; }
 
-  /* ── Phase 3: Model Management ── */
-  .model-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .model-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 16px;
-    transition: all 0.2s ease;
-  }
-
-  .model-card:hover {
-    border-color: rgba(91,141,239,0.2);
-    box-shadow: var(--shadow-sm);
-    transform: translateY(-2px);
-  }
-
-  .model-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-  }
-
-  .model-card-name {
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  .model-card-provider {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    text-transform: uppercase;
-  }
-
-  .model-card-strengths {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
-  }
-
-  .strength-tag {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(0,122,204,0.15);
-    color: var(--accent-blue);
-  }
-
-  .model-card-pricing {
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    display: flex;
-    gap: 12px;
-  }
-
-  .model-card-benchmarks {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 6px;
-  }
-
-  .model-tier {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-
-  .model-tier.premium { background: rgba(212,165,116,0.2); color: var(--claude-color); }
-  .model-tier.standard { background: rgba(126,200,227,0.2); color: var(--codex-color); }
-
   .routing-section {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -1355,57 +1171,6 @@
   }
 
   .routing-select:focus { border-color: var(--accent-blue); }
-
-  .budget-controls {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 18px;
-    margin-bottom: 16px;
-  }
-
-  .budget-controls h3 {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
-
-  .budget-slider-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-    font-size: 12px;
-  }
-
-  .budget-slider-label {
-    color: var(--text-secondary);
-    min-width: 120px;
-  }
-
-  .budget-slider {
-    flex: 1;
-    -webkit-appearance: none;
-    height: 4px;
-    background: var(--bg-primary);
-    border-radius: 2px;
-    outline: none;
-  }
-
-  .budget-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent-blue);
-    cursor: pointer;
-  }
-
-  .budget-slider-value {
-    font-family: var(--font-mono);
-    min-width: 50px;
-    text-align: right;
-  }
 
   .first-run-overlay {
     position: fixed;
@@ -2424,7 +2189,6 @@
     <div class="topbar-title">LLMTrio</div>
     <span id="workflowPhaseBadge" style="display:none;padding:4px 12px;font-size:11px;font-weight:600;border-radius:12px;background:rgba(91,141,239,0.15);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.3);letter-spacing:0.5px;text-transform:uppercase;"></span>
     <div class="topbar-spacer"></div>
-    <button class="btn btn-send" onclick="startDebate()" style="font-size:11px;" data-i18n="startDebate">Start Debate</button>
     <select id="langSelect" onchange="setLanguage(this.value)" style="background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
       <option value="en">EN</option>
       <option value="ko">한국어</option>
@@ -2541,29 +2305,10 @@
     <div class="main-tabs">
       <div class="main-tab active" data-tab="results" onclick="switchTab('results')">Results</div>
       <div class="main-tab" data-tab="flow" onclick="switchTab('flow')" data-i18n="flow">Flow</div>
-      <div class="main-tab" data-tab="debate" onclick="switchTab('debate')" data-i18n="debate">Debate</div>
       <div class="main-tab" data-tab="setup" onclick="switchTab('setup')" style="margin-left:auto;font-weight:700;padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;">⚙ Setup</div>
     </div>
     <div class="tab-content" id="tab-flow" style="overflow:hidden;">
       <div class="flow-v3" id="flowV3Container"></div>
-    </div>
-    <div class="tab-content" id="tab-debate" style="position:relative;">
-      <div class="consensus-meter">
-        <span data-i18n="consensus">Consensus</span>
-        <div class="consensus-bar">
-          <div class="consensus-fill" id="consensusFill" style="width:0%"></div>
-        </div>
-        <span id="consensusPercent">0%</span>
-      </div>
-      <div class="debate-timeline" id="debateTimeline">
-        <div style="color:var(--text-muted);text-align:center;padding:40px;font-size:12px;">
-<span data-i18n="debateEmpty">No debate started yet.</span>
-        </div>
-      </div>
-      <div class="debate-input-bar">
-        <input type="text" id="debateInput" data-i18n-placeholder="addOpinion" placeholder="Add your opinion to the debate..." />
-        <button class="btn btn-send" onclick="sendDebateInput()" data-i18n="send">Send</button>
-      </div>
     </div>
     <!-- Flow Detail Panel (slide-in from right) -->
     <div class="kb-detail" id="flowDetail">
@@ -2577,20 +2322,6 @@
       <div class="results-panel" id="resultsPanel"></div>
     </div>
     <div class="tab-content" id="tab-setup" style="padding:24px;overflow-y:auto;">
-      <!-- Model Update -->
-      <div style="margin-bottom:24px;padding:20px;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <h3 style="font-size:16px;font-weight:700;">Model Updates</h3>
-          <span id="modelLastChecked" style="font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
-        </div>
-        <p style="color:var(--text-muted);font-size:12px;margin-bottom:14px;">Gemini를 사용해서 최신 모델 정보를 확인하고 업데이트합니다.</p>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <button id="checkModelsBtn" onclick="checkLatestModels()" class="btn btn-send" style="padding:8px 20px;">최신 모델 확인</button>
-          <span id="checkModelsStatus" style="font-size:12px;color:var(--text-muted);"></span>
-        </div>
-        <div id="modelUpdateResult" style="display:none;margin-top:14px;padding:12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.6;color:var(--text-secondary);max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
-      </div>
-
       <!-- Workflow Settings -->
       <div style="margin-bottom:24px;padding:20px;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;">
         <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Workflow Settings</h3>
@@ -2651,7 +2382,7 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:start;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
       <!-- Col 1: Agent Setup -->
       <div>
       <div style="margin-bottom:16px;">
@@ -2733,55 +2464,14 @@
       </div>
 
       </div>
-      <!-- Col 2: Models -->
-      <div>
-      <div style="margin-bottom:16px;">
-        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Models</h3>
-        <p style="color:var(--text-muted);font-size:12px;">Available models.</p>
-      </div>
-
-        <div class="new-model-banner" id="newModelBanner" style="display:none;">
-          <span>🆕</span>
-          <span id="newModelText" data-i18n="newModelDetected">New model detected</span>
-          <span class="dismiss" onclick="this.parentElement.style.display='none'">✕</span>
-        </div>
-
-        <div class="model-grid" id="modelGrid">
-          <div style="color:var(--text-muted);padding:20px;font-size:12px;">
-            <span data-i18n="loadingModels">Loading models...</span>
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="modelLastUpdated"></div>
-      </div><!-- /col 2 -->
-
-      <!-- Col 3: Routing & Budget -->
+      <!-- Col 2: Routing -->
       <div>
       <div class="routing-section">
         <h3 data-i18n="routing">Task Routing</h3>
+        <p style="color:var(--text-muted);font-size:11px;margin-bottom:12px;">Each agent handles specific task types. Model selection is determined by your CLI subscription.</p>
         <div id="routingRules"></div>
       </div>
 
-      <div class="budget-controls" style="margin-top:28px;">
-        <h3>Usage Limits</h3>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label">Max Turns / Session</span>
-          <input type="range" class="budget-slider" id="sliderSession" min="5" max="100" step="5" value="30" oninput="updateBudgetSlider('session',this.value)">
-          <span class="budget-slider-value" id="valSession">30</span>
-        </div>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label">Max Turns / Day</span>
-          <input type="range" class="budget-slider" id="sliderDaily" min="10" max="500" step="10" value="100" oninput="updateBudgetSlider('daily',this.value)">
-          <span class="budget-slider-value" id="valDaily">100</span>
-        </div>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label">Timeout (min)</span>
-          <input type="range" class="budget-slider" id="sliderTimeout" min="5" max="60" step="5" value="30" oninput="updateBudgetSlider('timeout',this.value)">
-          <span class="budget-slider-value" id="valTimeout">30m</span>
-        </div>
-        <div style="margin-top:10px;">
-          <button class="btn btn-send" onclick="saveBudget()" data-i18n="save">Save</button>
-        </div>
-      </div>
       </div><!-- /col 3 -->
       </div><!-- /grid -->
     </div>
@@ -2888,7 +2578,7 @@
       opusCalls: 'Opus Calls',
       sendTo: (agent) => `Send to ${agent}...`,
       send: 'Send',
-      startDebate: 'Start Debate',
+
       debateEmpty: 'No debate started yet.',
       consensus: 'Consensus',
       taskBoard: 'Task Board',
@@ -2944,7 +2634,7 @@
       opusCalls: 'Opus 호출',
       sendTo: (agent) => `${agent}에게 지시...`,
       send: '전송',
-      startDebate: '토론 시작',
+
       debateEmpty: '토론이 시작되지 않았습니다.',
       consensus: '합의도',
       taskBoard: '태스크 보드',
@@ -3000,7 +2690,7 @@
       opusCalls: 'Opus 调用',
       sendTo: (agent) => `发送给 ${agent}...`,
       send: '发送',
-      startDebate: '开始讨论',
+
       debateEmpty: '讨论尚未开始。',
       consensus: '共识度',
       taskBoard: '任务板',
@@ -3056,7 +2746,7 @@
       opusCalls: 'Opus 呼出',
       sendTo: (agent) => `${agent}に送信...`,
       send: '送信',
-      startDebate: 'ディベート開始',
+
       debateEmpty: 'ディベートはまだ始まっていません。',
       consensus: 'コンセンサス',
       taskBoard: 'タスクボード',
@@ -3766,7 +3456,6 @@
     // Reset previous briefing and tasks immediately
     briefingData = null;
     briefingUnread = false;
-    debateMessages.length = 0;
     tasks = [];
     state.workflowTasks = [];
     state.phase = 'plan';
@@ -3866,40 +3555,6 @@
     if (tabId === 'results') renderResultsPanel();
   };
 
-  // ── Phase 2: Debate ──
-  const debateMessages = [];
-
-  window.startDebate = function() {
-    switchTab('debate');
-  };
-
-  window.sendDebateInput = function() {
-    const input = $('debateInput');
-    const text = input.value.trim();
-    if (!text) return;
-    postCommand({ type: 'debate-input', content: text });
-    appendDebateBubble({ sender: 'user', agent: 'user', content: text });
-    input.value = '';
-  };
-
-  function appendDebateBubble(data) {
-    const timeline = $('debateTimeline');
-    if (!timeline) return;
-    // Remove placeholder
-    if (debateMessages.length === 0) {
-      timeline.innerHTML = '';
-    }
-    debateMessages.push(data);
-    const bubble = document.createElement('div');
-    const agent = data.agent || data.sender || 'user';
-    bubble.className = 'debate-bubble ' + agent;
-    bubble.innerHTML = '<div class="debate-sender">' + escapeHtml(agent) + '</div>' + escapeHtml(data.content || data.message || '');
-    timeline.appendChild(bubble);
-    timeline.scrollTop = timeline.scrollHeight;
-  }
-
-  // Listen for debate SSE
-  // (will be wired up in SSE section)
 
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -4772,57 +4427,6 @@ ${rawOutput.slice(0, 4000)}`,
   };
 
   // Workflow settings
-  // ── Model Update via Gemini ──
-  window.checkLatestModels = function() {
-    const btn = $('checkModelsBtn');
-    const statusEl = $('checkModelsStatus');
-    const resultEl = $('modelUpdateResult');
-
-    btn.disabled = true;
-    btn.textContent = tt('checking');
-    statusEl.textContent = tt('askingGemini');
-    resultEl.style.display = 'none';
-
-    fetch('/api/run-agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        agent: 'gemini',
-        prompt: 'List the latest available AI models from OpenAI (GPT-4o, o1, o3, etc), Anthropic (Claude 4, Claude 3.5, Opus, Sonnet, Haiku, etc), and Google (Gemini 2.5, etc) as of 2026. For each give: model name, API model ID, and one-line description of key capability. Be concise, bullet points only. Do NOT execute any commands or touch any files.',
-        timeout: 60,
-      }),
-    })
-    .then(r => r.json())
-    .then(data => {
-      btn.disabled = false;
-      const _checkBtn = { en: 'Check Latest Models', ko: '최신 모델 확인', zh: '检查最新模型', ja: '最新モデルを確認' };
-      const _checkDone = { en: 'Check complete', ko: '확인 완료', zh: '检查完成', ja: '確認完了' };
-      const _lastChecked = { en: 'Last checked: ', ko: '마지막 확인: ', zh: '上次检查: ', ja: '最終確認: ' };
-      const _reqFailed = { en: 'Request failed', ko: '요청 실패', zh: '请求失败', ja: 'リクエスト失敗' };
-      btn.textContent = _checkBtn[lang] || _checkBtn.en;
-
-      if (data.ok && data.output) {
-        resultEl.textContent = data.output.trim();
-        resultEl.style.display = 'block';
-        statusEl.textContent = _checkDone[lang] || _checkDone.en;
-        $('modelLastChecked').textContent = (_lastChecked[lang] || _lastChecked.en) + new Date().toLocaleString();
-      } else {
-        statusEl.textContent = ({ en: 'Failed: ', ko: '실패: ', zh: '失败: ', ja: '失敗: ' }[lang] || 'Failed: ') + (data.error || 'Unknown error').slice(0, 100);
-        if (data.output) {
-          resultEl.textContent = data.output.trim();
-          resultEl.style.display = 'block';
-        }
-      }
-    })
-    .catch(() => {
-      btn.disabled = false;
-      const _checkBtn = { en: 'Check Latest Models', ko: '최신 모델 확인', zh: '检查最新模型', ja: '最新モデルを確認' };
-      const _reqFailed = { en: 'Request failed', ko: '요청 실패', zh: '请求失败', ja: 'リクエスト失敗' };
-      btn.textContent = _checkBtn[lang] || _checkBtn.en;
-      statusEl.textContent = _reqFailed[lang] || _reqFailed.en;
-    });
-  };
-
   window.saveWorkflowSettings = function() {
     const settings = {
       plan: {
@@ -4841,7 +4445,7 @@ ${rawOutput.slice(0, 4000)}`,
     fetch('/api/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'update-budget', content: JSON.stringify({ ...budget, timeout_seconds: settings.timeout_seconds, workflow: settings }) }),
+      body: JSON.stringify({ type: 'update-budget', content: JSON.stringify({ timeout_seconds: settings.timeout_seconds, workflow: settings }) }),
     }).then(() => {
       // Also save locally
       localStorage.setItem('workflowSettings', JSON.stringify(settings));
@@ -4890,21 +4494,6 @@ ${rawOutput.slice(0, 4000)}`,
           window.sendPrompt(agent);
         }
       });
-    }
-    $('debateInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        window.sendDebateInput();
-      }
-    });
-  }
-
-  // Update SSE to handle debate + task events
-  function handleDebateUpdate(data) {
-    appendDebateBubble(data);
-    if (data.consensus !== undefined) {
-      $('consensusFill').style.width = (data.consensus * 100) + '%';
-      $('consensusPercent').textContent = Math.round(data.consensus * 100) + '%';
     }
   }
 
@@ -4958,14 +4547,11 @@ ${rawOutput.slice(0, 4000)}`,
     renderActiveTab();
   }
 
-  // Patch SSE to add debate-update listener
+  // Patch SSE to add task/setup listeners
   const origConnectSSE = connectSSE;
   connectSSE = function() {
     origConnectSSE();
     if (eventSource) {
-      eventSource.addEventListener('debate-update', (e) => {
-        try { handleDebateUpdate(JSON.parse(e.data)); } catch {}
-      });
       eventSource.addEventListener('tasks-update', (e) => {
         try { handleTasksUpdate(JSON.parse(e.data)); } catch {}
       });
@@ -5020,27 +4606,8 @@ ${rawOutput.slice(0, 4000)}`,
     }
   }
 
-  // ── Phase 3: Model Management ──
   let models = [];
   let routing = {};
-  let budget = { session_limit: 5, daily_limit: 20, opus_call_limit: 50, warn_at: 0.8 };
-
-  function loadModels() {
-    fetch('/api/models', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data && data.models) {
-          models = data.models;
-          renderModelGrid();
-          const el = $('modelLastUpdated');
-          if (el && data.lastUpdated) {
-            const d = new Date(data.lastUpdated);
-            el.textContent = 'Last updated: ' + d.toLocaleString();
-          }
-        }
-      })
-      .catch(err => { console.error('fetch error:', err); });
-  }
 
   function loadRouting() {
     fetch('/api/routing', { cache: 'no-store' })
@@ -5054,52 +4621,14 @@ ${rawOutput.slice(0, 4000)}`,
       .catch(err => { console.error('fetch error:', err); });
   }
 
-  function loadBudget() {
-    fetch('/api/budget', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) {
-          budget = data;
-          state.cost.budget = data.session_limit || 5;
-          $('sliderSession').value = data.session_limit || 5;
-          $('valSession').textContent = '$' + (data.session_limit || 5);
-          $('sliderDaily').value = data.daily_limit || 20;
-          $('valDaily').textContent = '$' + (data.daily_limit || 20);
-          const sliderOpus = $('sliderOpus');
-          const valOpus = $('valOpus');
-          if (sliderOpus) sliderOpus.value = data.opus_call_limit || 50;
-          if (valOpus) valOpus.textContent = data.opus_call_limit || 50;
-          queueRender();
-        }
-      })
-      .catch(err => { console.error('fetch error:', err); });
-  }
-
-  function renderModelGrid() {
-    const grid = $('modelGrid');
-    if (!models.length) {
-      grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;font-size:12px;">' + t.noModels + '</div>';
-      return;
-    }
-    grid.innerHTML = models.map(m => `
-      <div class="model-card">
-        <div class="model-card-header">
-          <div>
-            <div class="model-card-name">${escapeHtml(m.name || m.id)}</div>
-            <span class="model-card-provider">${escapeHtml(m.provider || '')}</span>
-          </div>
-          ${m.tier ? '<span class="model-tier ' + m.tier + '">' + m.tier + '</span>' : ''}
-        </div>
-        <div class="model-card-strengths">
-          ${(m.strengths || []).map(s => '<span class="strength-tag">' + escapeHtml(s) + '</span>').join('')}
-        </div>
-        <div class="model-card-pricing">
-          ${m.pricing ? '<span>In $' + m.pricing.input + '/1M</span><span>Out $' + m.pricing.output + '/1M</span>' : ''}
-        </div>
-        ${m.benchmarks ? '<div class="model-card-benchmarks">Coding ' + (m.benchmarks.coding || '—') + ' · Reasoning ' + (m.benchmarks.reasoning || '—') + '</div>' : ''}
-      </div>
-    `).join('');
-  }
+  // Default routing: hardcoded agent assignments
+  const DEFAULT_ROUTING = {
+    research: 'gemini',
+    architecture: 'claude',
+    implementation: 'codex',
+    'code-review': 'claude',
+    documentation: 'gemini',
+  };
 
   function renderRoutingRules() {
     const container = $('routingRules');
@@ -5111,45 +4640,21 @@ ${rawOutput.slice(0, 4000)}`,
       'code-review': t.codeReview,
       documentation: t.documentation,
     };
-    const modelOptions = models.length > 0
-      ? models.map(m => m.id)
-      : ['claude-opus-4.6', 'gpt-5.4-codex', 'gemini-3.1-pro'];
+    const effectiveRouting = Object.keys(routing).length > 0 ? routing : DEFAULT_ROUTING;
 
-    container.innerHTML = Object.entries(routing).map(([task, model]) => `
-      <div class="routing-row">
+    container.innerHTML = Object.entries(effectiveRouting).map(([task, model]) => {
+      const agent = model.includes('codex') || model.includes('gpt') ? 'codex'
+        : model.includes('gemini') ? 'gemini' : 'claude';
+      const dotColor = agent === 'claude' ? 'var(--claude-color)' : agent === 'codex' ? 'var(--codex-color)' : 'var(--gemini-color)';
+      return `<div class="routing-row">
         <span class="routing-task-label">${taskLabels[task] || task}</span>
-        <select class="routing-select" data-task="${task}" onchange="updateRouting('${task}',this.value)">
-          ${modelOptions.map(m => '<option value="' + m + '"' + (m === model ? ' selected' : '') + '>' + m + '</option>').join('')}
-        </select>
-      </div>
-    `).join('');
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--font-mono);color:var(--text-primary);">
+          <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0;"></span>
+          ${agent}
+        </span>
+      </div>`;
+    }).join('');
   }
-
-  window.updateRouting = function(task, model) {
-    routing[task] = model;
-    postCommand({ type: 'update-routing', content: JSON.stringify({ rules: routing }) });
-  };
-
-  window.updateBudgetSlider = function(type, val) {
-    if (type === 'session') {
-      $('valSession').textContent = val;
-    } else if (type === 'daily') {
-      $('valDaily').textContent = val;
-    } else if (type === 'timeout') {
-      $('valTimeout').textContent = val + 'm';
-    }
-  };
-
-  window.saveBudget = function() {
-    const newBudget = {
-      max_turns_session: parseInt($('sliderSession').value),
-      max_turns_daily: parseInt($('sliderDaily').value),
-      timeout_minutes: parseInt($('sliderTimeout').value),
-      warn_at: 0.8,
-    };
-    postCommand({ type: 'update-budget', content: JSON.stringify(newBudget) });
-    queueRender();
-  };
 
   // ── Setup / Auth ──
   function checkAuthStatus() {
@@ -5379,16 +4884,6 @@ ${rawOutput.slice(0, 4000)}`,
     }
   }
 
-  // SSE: new model alert
-  function handleModelAlert(data) {
-    if (data.newModels && data.newModels.length > 0) {
-      const banner = $('newModelBanner');
-      banner.style.display = 'flex';
-      $('newModelText').textContent = t.newModelDetected + ': ' + data.newModels.join(', ');
-      loadModels();
-    }
-  }
-
   // ── Init ──
   function init() {
     applyI18n();
@@ -5399,9 +4894,7 @@ ${rawOutput.slice(0, 4000)}`,
     connectSSE();
     fetchFullState();
     initPromptInputs();
-    loadModels();
     loadRouting();
-    loadBudget();
     checkAuthStatus();
 
     // Init workflow mode selector
