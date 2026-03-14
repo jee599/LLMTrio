@@ -866,7 +866,7 @@
   function postCommand(cmd) {
     return fetch('/api/command', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify(cmd),
     }).then(r => r.json());
   }
@@ -950,7 +950,7 @@
     // Send as workflow start command
     fetch('/api/command', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify({ type: 'prompt', content: text, workflow: true, autoMode: _workflowMode === 'auto' }),
     })
     .then(r => r.json())
@@ -1205,7 +1205,7 @@ ${rawOutput.slice(0, 4000)}`,
     try {
       const res = await fetch('/api/run-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
         body: JSON.stringify({ agent: 'gemini', prompt, timeout: 60 }),
       });
       const data = await res.json();
@@ -1972,7 +1972,7 @@ ${rawOutput.slice(0, 4000)}`,
     // Save to server via budget endpoint (reuse)
     fetch('/api/command', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify({ type: 'update-budget', content: JSON.stringify({ timeout_seconds: settings.timeout_seconds, workflow: settings }) }),
     }).then(() => {
       // Also save locally
@@ -2279,7 +2279,7 @@ ${rawOutput.slice(0, 4000)}`,
     setupLog(log, 'This may take 30-60 seconds. Please wait...');
     fetch('/api/install-cli', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify({ provider }),
     })
     .then(r => r.json())
@@ -2315,7 +2315,7 @@ ${rawOutput.slice(0, 4000)}`,
     setupLog(log, 'A browser window will open for login.');
     fetch('/api/cli-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify({ provider }),
     })
     .then(r => r.json())
@@ -2361,7 +2361,7 @@ ${rawOutput.slice(0, 4000)}`,
     if (!key) return;
     fetch('/api/save-key', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
       body: JSON.stringify({ provider, key }),
     })
     .then(r => r.json())

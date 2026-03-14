@@ -6,7 +6,10 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync, spawn } = require('child_process');
+
+const SESSION_TOKEN = crypto.randomBytes(16).toString('hex');
 
 
 const HOST = '127.0.0.1';
@@ -217,18 +220,19 @@ function handleRequest(req, res) {
       return;
     }
     serveJson(res, path.join(RESULTS_DIR, `${taskId}.json`));
-  } else if (req.method === 'POST' && pathname === '/api/command') {
-    receiveCommand(req, res);
+  } else if (req.method === 'POST' && (pathname === '/api/command' || pathname === '/api/save-key' || pathname === '/api/install-cli' || pathname === '/api/cli-login' || pathname === '/api/run-agent')) {
+    if (!validateToken(req)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid session token' }));
+      return;
+    }
+    if (pathname === '/api/command') receiveCommand(req, res);
+    else if (pathname === '/api/save-key') saveApiKey(req, res);
+    else if (pathname === '/api/install-cli') installCli(req, res);
+    else if (pathname === '/api/cli-login') cliLogin(req, res);
+    else if (pathname === '/api/run-agent') runSingleAgent(req, res);
   } else if (req.method === 'GET' && pathname === '/api/auth-status') {
     serveAuthStatus(res);
-  } else if (req.method === 'POST' && pathname === '/api/save-key') {
-    saveApiKey(req, res);
-  } else if (req.method === 'POST' && pathname === '/api/install-cli') {
-    installCli(req, res);
-  } else if (req.method === 'POST' && pathname === '/api/cli-login') {
-    cliLogin(req, res);
-  } else if (req.method === 'POST' && pathname === '/api/run-agent') {
-    runSingleAgent(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -237,7 +241,6 @@ function handleRequest(req, res) {
 
 // --- POST /api/command ---
 
-const PENDING_FILE = path.join(TRIO_DIR, 'commands', 'pending.json');
 const VALID_TYPES = ['prompt','pause','cancel','approve','reject','reassign',
   'update-routing','update-budget','merge','retry-failed'];
 const VALID_TARGETS = ['claude','codex','gemini'];
@@ -408,7 +411,6 @@ function receiveCommand(req, res) {
         return;
       }
       cmd.timestamp = new Date().toISOString();
-      appendToPending(cmd);
 
       // If workflow prompt, spawn octopus-core.js
       if (cmd.type === 'prompt' && cmd.workflow) {
@@ -467,7 +469,7 @@ function killOldOctopusProcesses() {
   try {
     const pidFile = path.join(pidDir, 'octopus-core.pid');
     if (fs.existsSync(pidFile)) {
-      const pid = parseInt(fs.readFileSync(pidFile, 'utf8'));
+      const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
       if (pid) {
         try { process.kill(pid, 'SIGTERM'); console.log(`[dashboard-server] killed old octopus-core PID ${pid}`); } catch {}
       }
@@ -602,22 +604,6 @@ function startWorkflow(prompt, opts = {}) {
   });
 }
 
-function appendToPending(cmd) {
-  ensureDir(path.join(TRIO_DIR, 'commands'));
-  let pending = [];
-  try {
-    const raw = fs.readFileSync(PENDING_FILE, 'utf8');
-    pending = JSON.parse(raw);
-    if (!Array.isArray(pending)) pending = [];
-  } catch {
-    // file doesn't exist or is invalid
-  }
-  pending.push(cmd);
-  const tmpFile = PENDING_FILE + '.tmp';
-  fs.writeFileSync(tmpFile, JSON.stringify(pending, null, 2), 'utf8');
-  fs.renameSync(tmpFile, PENDING_FILE);
-}
-
 // --- GET /api/auth-status ---
 
 function checkCli(cmd) {
@@ -730,7 +716,8 @@ function installCli(req, res) {
         return;
       }
       broadcast('setup-update', { provider, status: 'installing' });
-      const proc = spawn('npm', ['install', '-g', packageName], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      const proc = spawn(npmCmd, ['install', '-g', packageName], { stdio: ['ignore', 'pipe', 'pipe'] });
       let stdout = '', stderr = '';
       proc.stdout.on('data', d => { stdout += d.toString(); });
       proc.stderr.on('data', d => { stderr += d.toString(); });
@@ -809,9 +796,15 @@ function serveStaticFile(res, filename) {
   }
 }
 
+function validateToken(req) {
+  const token = req.headers['x-trio-token'];
+  return token === SESSION_TOKEN;
+}
+
 function serveHtml(res) {
   try {
-    const html = fs.readFileSync(DASHBOARD_HTML, 'utf8');
+    const html = fs.readFileSync(DASHBOARD_HTML, 'utf8')
+      .replace('</head>', `<script>window.__TRIO_TOKEN='${SESSION_TOKEN}';</script></head>`);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
   } catch (err) {

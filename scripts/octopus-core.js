@@ -236,6 +236,19 @@ async function runWorkflow(prompt, opts = {}) {
   }
 
   let prevPhaseOutputs = '';
+
+  // Pre-load plan context for execute-only mode (approval flow)
+  if (onlyPhase === 'execute') {
+    const planSummary = readJson(path.join(TRIO_DIR, 'plan-summary.json'));
+    if (planSummary) {
+      prevPhaseOutputs = Object.entries(planSummary)
+        .filter(([_, v]) => v.status === 'done' && v.output)
+        .map(([name, v]) => `[${name}]: ${v.output.slice(-2000)}`)
+        .join('\n\n');
+      log(`Loaded plan context: ${prevPhaseOutputs.length} chars from plan-summary.json`);
+    }
+  }
+
   const phases = getPhases();
 
   for (const phase of PHASE_ORDER) {
@@ -458,7 +471,12 @@ async function runSingleTask(agentName, prompt) {
 }
 
 // --- Lifecycle ---
-function writePid() { ensureDir(PIDS_DIR); writeJsonAtomic(PID_FILE, String(process.pid)); }
+function writePid() {
+  ensureDir(PIDS_DIR);
+  const tmp = PID_FILE + '.tmp';
+  fs.writeFileSync(tmp, String(process.pid), 'utf8');
+  fs.renameSync(tmp, PID_FILE);
+}
 function removePid() { try { fs.unlinkSync(PID_FILE); } catch { /* ok */ } }
 
 function shutdown(signal) {
