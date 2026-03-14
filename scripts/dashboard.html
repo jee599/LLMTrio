@@ -4075,7 +4075,7 @@
   }
 
   async function loadResultsSummary() {
-    const allTasks = tasks.filter(t => (t.status === 'done' || t.status === 'error') && (t.elapsed > 0 || t.tokens > 0));
+    const allTasks = tasks.filter(t => t.status === 'done' || t.status === 'error');
     if (!allTasks.length) return;
 
     const results = {};
@@ -4429,14 +4429,36 @@ ${rawOutput.slice(0, 4000)}`,
     });
 
     // Footer
-    html += `</div><div class="fv-footer">
-      <span style="font-weight:600;color:${isComplete ? 'var(--accent-green)' : 'var(--text-secondary)'};">
-        ${isComplete ? '✓ ' : ''}${tt('workflow')}: ${isComplete ? tt('complete') : tt('inProgress')}
-      </span>
-      <span style="color:var(--text-muted);">
-        ${totalDone}/${allTasks.length} ${tt('done')}${totalErr ? ` · ${totalErr} ${tt('failed')}` : ''}${totalTokens ? ` · ~${totalTokens.toLocaleString()} tokens` : ''}
-      </span>
-    </div>`;
+    const isAwaiting = curPhase === 'awaiting-approval';
+    const _awaitLabel = { en: 'Awaiting your approval to proceed', ko: '실행 단계 진행을 위해 승인이 필요합니다', zh: '等待您的批准以继续', ja: '続行するには承認が必要です' };
+    const _approveBtn = { en: 'Approve & Execute', ko: '승인 — 실행하기', zh: '批准并执行', ja: '承認して実行' };
+    const _rejectBtn = { en: 'Reject', ko: '거절', zh: '拒绝', ja: '拒否' };
+
+    if (isAwaiting) {
+      html += `</div><div class="fv-footer" style="flex-direction:column;gap:10px;padding:16px 20px;">
+        <div style="display:flex;align-items:center;gap:10px;width:100%;">
+          <span style="font-size:18px;">⏸</span>
+          <span style="font-weight:600;color:var(--accent-yellow);flex:1;">${_awaitLabel[lang] || _awaitLabel.en}</span>
+          <span style="color:var(--text-muted);font-size:12px;">
+            ${totalDone}/${allTasks.length} ${tt('done')}
+          </span>
+        </div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <button onclick="rejectWorkflow()" style="padding:8px 20px;font-size:13px;font-weight:600;background:transparent;color:var(--accent-red);border:1px solid rgba(239,83,80,0.4);border-radius:8px;cursor:pointer;">${_rejectBtn[lang] || _rejectBtn.en}</button>
+          <button onclick="showApprovalWidget()" style="padding:8px 20px;font-size:13px;background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;cursor:pointer;flex:1;">Plan 결과 검토</button>
+          <button onclick="approveWorkflow()" style="padding:8px 24px;font-size:13px;font-weight:700;background:var(--accent-green);color:#fff;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(52,211,153,0.3);">${_approveBtn[lang] || _approveBtn.en}</button>
+        </div>
+      </div>`;
+    } else {
+      html += `</div><div class="fv-footer">
+        <span style="font-weight:600;color:${isComplete ? 'var(--accent-green)' : 'var(--text-secondary)'};">
+          ${isComplete ? '✓ ' : ''}${tt('workflow')}: ${isComplete ? tt('complete') : tt('inProgress')}
+        </span>
+        <span style="color:var(--text-muted);">
+          ${totalDone}/${allTasks.length} ${tt('done')}${totalErr ? ` · ${totalErr} ${tt('failed')}` : ''}${totalTokens ? ` · ~${totalTokens.toLocaleString()} tokens` : ''}
+        </span>
+      </div>`;
+    }
 
     container.innerHTML = html;
 
