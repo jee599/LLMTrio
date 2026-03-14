@@ -187,6 +187,8 @@ function handleRequest(req, res) {
 
   if (req.method === 'GET' && pathname === '/') {
     serveHtml(res);
+  } else if (req.method === 'GET' && (pathname === '/dashboard.css' || pathname === '/dashboard.js')) {
+    serveStaticFile(res, pathname.slice(1));
   } else if (req.method === 'GET' && pathname === '/events') {
     serveSse(res);
   } else if (req.method === 'GET' && pathname === '/api/state') {
@@ -237,7 +239,7 @@ function handleRequest(req, res) {
 
 const PENDING_FILE = path.join(TRIO_DIR, 'commands', 'pending.json');
 const VALID_TYPES = ['prompt','pause','cancel','approve','reject','reassign',
-  'update-routing','update-budget','merge'];
+  'update-routing','update-budget','merge','retry-failed'];
 const VALID_TARGETS = ['claude','codex','gemini'];
 
 let workflowProc = null;
@@ -320,6 +322,75 @@ function startExecutePhase() {
   });
 }
 
+function retryFailedTasks() {
+  if (workflowProc) {
+    console.log('[dashboard-server] workflow already running, cannot retry');
+    return;
+  }
+  killOldOctopusProcesses();
+
+  const octopus = path.join(__dirname, 'octopus-core.js');
+  const spawnEnv = { ...process.env };
+  delete spawnEnv.CLAUDECODE;
+  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
+  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  delete spawnEnv.ANTHROPIC_API_KEY;
+
+  console.log('[dashboard-server] retrying failed tasks');
+
+  workflowProc = spawn('node', [octopus, 'retry'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: spawnEnv,
+  });
+
+  workflowProc.stdout.on('data', (chunk) => {
+    chunk.toString().trim().split('\n').forEach(line => {
+      console.log(`[octopus] ${line}`);
+      broadcast('workflow-log', { message: line });
+    });
+  });
+  workflowProc.stderr.on('data', (chunk) => {
+    console.error(`[octopus-err] ${chunk.toString().trim()}`);
+  });
+  workflowProc.on('close', (code) => {
+    console.log(`[dashboard-server] retry finished (exit ${code})`);
+    const stateFile = path.join(TRIO_DIR, 'state.json');
+    try {
+      const st = parseJsonFileSync(stateFile);
+      if (st && st.tasks) {
+        for (const task of st.tasks) {
+          if (task.status === 'working' || task.status === 'pending') {
+            const rf = path.join(RESULTS_DIR, `${task.id}.json`);
+            const result = parseJsonFileSync(rf);
+            if (result && (result.status === 'done' || result.status === 'error')) {
+              task.status = result.status;
+              task.elapsed = result.elapsed || task.elapsed;
+              task.tokens = result.tokens || task.tokens;
+              if (result.error) task.error = result.error;
+            } else {
+              task.status = 'error';
+              task.error = code === 0 ? 'Process ended unexpectedly' : `Process crashed (exit ${code})`;
+            }
+          }
+        }
+        st.phase = 'complete';
+        const done = st.tasks.filter(t => t.status === 'done').length;
+        st.phaseProgress = st.tasks.length ? done / st.tasks.length : 1;
+        writeJsonFileSync(stateFile, st);
+      }
+    } catch (e) {
+      console.error(`[dashboard-server] retry state sync error: ${e.message}`);
+    }
+    workflowProc = null;
+    broadcast('workflow-done', { code });
+  });
+  workflowProc.on('error', (err) => {
+    console.error(`[dashboard-server] retry spawn error: ${err.message}`);
+    broadcast('workflow-error', { error: err.message });
+    workflowProc = null;
+  });
+}
+
 function receiveCommand(req, res) {
   let body = '';
   req.on('data', chunk => { body += chunk; });
@@ -375,6 +446,10 @@ function receiveCommand(req, res) {
         try { workflowProc.kill('SIGTERM'); } catch {}
         workflowProc = null;
         broadcast('workflow-done', { code: -1, cancelled: true });
+      }
+      // Handle retry-failed — re-run only failed tasks
+      if (cmd.type === 'retry-failed') {
+        retryFailedTasks();
       }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -718,6 +793,20 @@ function cliLogin(req, res) {
       res.end(JSON.stringify({ error: 'Invalid JSON' }));
     }
   });
+}
+
+function serveStaticFile(res, filename) {
+  const MIME = { '.css': 'text/css', '.js': 'application/javascript' };
+  const ext = path.extname(filename);
+  const filePath = path.join(__dirname, filename);
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.writeHead(200, { 'Content-Type': (MIME[ext] || 'text/plain') + '; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(content);
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+  }
 }
 
 function serveHtml(res) {

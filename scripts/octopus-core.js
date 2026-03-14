@@ -364,6 +364,84 @@ async function runWorkflow(prompt, opts = {}) {
   log('Workflow complete');
 }
 
+// --- Retry failed tasks ---
+async function retryFailed() {
+  const state = loadState();
+  const failedTasks = state.tasks.filter(t => t.status === 'error');
+  if (!failedTasks.length) {
+    log('No failed tasks to retry');
+    return;
+  }
+  log(`Retrying ${failedTasks.length} failed task(s)`);
+
+  const prompt = state.prompt || '';
+
+  // Build previous phase outputs from successful plan tasks (for execute-phase context)
+  let prevPhaseOutputs = '';
+  const planSummary = readJson(path.join(TRIO_DIR, 'plan-summary.json'));
+  if (planSummary) {
+    prevPhaseOutputs = Object.entries(planSummary)
+      .filter(([_, v]) => v.status === 'done' && v.output)
+      .map(([name, v]) => `[${name}]: ${v.output.slice(-2000)}`)
+      .join('\n\n');
+  }
+
+  // Reset failed tasks to pending
+  for (const task of failedTasks) {
+    task.status = 'pending';
+    task.error = undefined;
+    task.elapsed = 0;
+    task.tokens = 0;
+    // Generate new task id so result file doesn't conflict
+    const oldId = task.id;
+    task.id = genTaskId();
+    log(`Reset task "${task.name}" (${oldId} → ${task.id})`);
+  }
+  state.phase = failedTasks[0].phase || 'execute';
+  saveState(state);
+
+  await Promise.all(failedTasks.map(async (task) => {
+    if (shuttingDown) return;
+
+    task._onSpawned = () => {
+      task.status = 'working';
+      saveState(state);
+    };
+
+    // Detect language for prompt
+    const langNote = /[가-힣]/.test(prompt) ? '\n\n반드시 한국어로 응답하세요.'
+      : /[\u4e00-\u9fff]/.test(prompt) ? '\n\nPlease respond entirely in Chinese (简体中文).'
+      : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
+      : '';
+    const rolePrompts = {
+      research: `You are a research analyst. DO NOT execute the task yourself. DO NOT touch files or run commands. Only ANALYZE the request and output a short brief (under 150 words):\n- What the user wants\n- What approach to take\n- Key risks or constraints\n\nUser request: "${prompt}"${langNote}`,
+      architecture: `You are an architect. DO NOT write code. Output a short plan (under 200 words): components, file structure, interactions.\n\nUser request: "${prompt}"${langNote}`,
+      scaffold: `Create the minimal project structure needed. Be concise.\n\nTask: ${prompt}${langNote}`,
+      implementation: `Write the core code. Be concise and focused.\n\nTask: ${prompt}${langNote}`,
+      'code-review': `Review the code. List max 5 issues (bugs, security, improvements). Be specific, no filler.\n\nTask: ${prompt}${langNote}`,
+      documentation: `Write a short README with usage examples. Keep it under 200 words.\n\nTask: ${prompt}${langNote}`,
+    };
+    let fullPrompt = rolePrompts[task.type] || `[${task.phase}/${task.name}] ${prompt}`;
+    if (prevPhaseOutputs) {
+      fullPrompt += `\n\n--- Previous phase results ---\n${prevPhaseOutputs}`;
+    }
+
+    const result = await spawnAgent(task.agent, fullPrompt, task);
+    task.status = result.success ? 'done' : 'error';
+    task.elapsed = result.elapsed || 0;
+    task.tokens = result.tokens || 0;
+    if (result.error) task.error = result.error;
+    state.sessionTokens += task.tokens;
+    saveState(state);
+  }));
+
+  state.phase = 'complete';
+  const done = state.tasks.filter(t => t.status === 'done').length;
+  state.phaseProgress = state.tasks.length ? done / state.tasks.length : 1;
+  saveState(state);
+  log('Retry complete');
+}
+
 // --- Single task mode ---
 async function runSingleTask(agentName, prompt) {
   const agent = agentName.toLowerCase();
@@ -420,6 +498,8 @@ async function main() {
     const prompt = promptWords.join(' ');
     if (!prompt && !onlyPhase) { log('Missing prompt'); process.exit(1); }
     await runWorkflow(prompt || '', { onlyPhase });
+  } else if (command === 'retry') {
+    await retryFailed();
   } else if (command === 'task') {
     const [agent, ...words] = rest;
     const prompt = words.join(' ');
