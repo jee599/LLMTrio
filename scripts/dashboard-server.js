@@ -232,6 +232,86 @@ const VALID_TYPES = ['prompt','pause','cancel','approve','reject','reassign',
 const VALID_TARGETS = ['claude','codex','gemini'];
 
 let workflowProc = null;
+let _workflowPrompt = '';
+let _workflowAutoMode = false;
+
+function startExecutePhase() {
+  const stateFile = path.join(TRIO_DIR, 'state.json');
+  const st = parseJsonFileSync(stateFile);
+  if (!st || st.phase !== 'awaiting-approval') {
+    console.error('[dashboard-server] cannot start execute: not in awaiting-approval state');
+    return;
+  }
+  const prompt = st.prompt || _workflowPrompt;
+  if (!prompt) {
+    console.error('[dashboard-server] cannot start execute: no prompt');
+    return;
+  }
+
+  // Collect plan outputs for context passing
+  const octopus = path.join(__dirname, 'octopus-core.js');
+  const spawnEnv = { ...process.env };
+  delete spawnEnv.CLAUDECODE;
+  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
+  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  delete spawnEnv.ANTHROPIC_API_KEY;
+
+  console.log(`[dashboard-server] starting execute phase for: ${prompt.slice(0, 60)}...`);
+
+  workflowProc = spawn('node', [octopus, 'start', '--phase', 'execute', prompt], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: spawnEnv,
+  });
+
+  workflowProc.stdout.on('data', (chunk) => {
+    chunk.toString().trim().split('\n').forEach(line => {
+      console.log(`[octopus] ${line}`);
+      broadcast('workflow-log', { message: line });
+    });
+  });
+  workflowProc.stderr.on('data', (chunk) => {
+    console.error(`[octopus-err] ${chunk.toString().trim()}`);
+  });
+  workflowProc.on('close', (code) => {
+    console.log(`[dashboard-server] execute phase finished (exit ${code})`);
+    // Sync stuck tasks
+    try {
+      const st2 = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      if (st2.tasks) {
+        for (const task of st2.tasks) {
+          if (task.status === 'working' || task.status === 'pending') {
+            const rf = path.join(RESULTS_DIR, `${task.id}.json`);
+            try {
+              const result = JSON.parse(fs.readFileSync(rf, 'utf8'));
+              if (result.status === 'done' || result.status === 'error') {
+                task.status = result.status;
+                task.elapsed = result.elapsed || task.elapsed;
+                task.tokens = result.tokens || task.tokens;
+                if (result.error) task.error = result.error;
+              }
+            } catch {
+              task.status = 'error';
+              task.error = code === 0 ? 'Process ended unexpectedly' : `Process crashed (exit ${code})`;
+            }
+          }
+        }
+        st2.phase = 'complete';
+        const done = st2.tasks.filter(t => t.status === 'done').length;
+        st2.phaseProgress = st2.tasks.length ? done / st2.tasks.length : 1;
+        writeJsonFileSync(stateFile, st2);
+      }
+    } catch (e) {
+      console.error(`[dashboard-server] state sync error: ${e.message}`);
+    }
+    workflowProc = null;
+    broadcast('workflow-done', { code });
+  });
+  workflowProc.on('error', (err) => {
+    console.error(`[dashboard-server] execute spawn error: ${err.message}`);
+    broadcast('workflow-error', { error: err.message });
+    workflowProc = null;
+  });
+}
 
 function receiveCommand(req, res) {
   let body = '';
@@ -256,16 +336,21 @@ function receiveCommand(req, res) {
       if (cmd.type === 'prompt' && cmd.workflow) {
         startWorkflow(cmd.content, { autoMode: cmd.autoMode });
       }
-      // Handle plan approval/rejection
+      // Handle plan approval — spawn execute phase
       if (cmd.type === 'approve' && cmd.workflowApproval) {
-        const approvalFile = path.join(TRIO_DIR, 'commands', 'approval.json');
-        writeJsonFileSync(approvalFile, { approved: true, timestamp: new Date().toISOString() });
-        console.log('[dashboard-server] plan approved');
+        console.log('[dashboard-server] plan approved — starting execute phase');
+        startExecutePhase();
       }
       if (cmd.type === 'reject' && cmd.workflowApproval) {
-        const approvalFile = path.join(TRIO_DIR, 'commands', 'approval.json');
-        writeJsonFileSync(approvalFile, { approved: false, reason: cmd.content || '', timestamp: new Date().toISOString() });
         console.log('[dashboard-server] plan rejected');
+        // Mark workflow as complete
+        try {
+          const stateFile = path.join(TRIO_DIR, 'state.json');
+          const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+          st.phase = 'complete';
+          writeJsonFileSync(stateFile, st);
+        } catch {}
+        broadcast('workflow-done', { code: 0, rejected: true });
       }
       // Handle update-budget directly (no need for command-watcher)
       if (cmd.type === 'update-budget' && cmd.content) {
@@ -330,8 +415,13 @@ function startWorkflow(prompt, opts = {}) {
   delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
   delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
   delete spawnEnv.ANTHROPIC_API_KEY;
+  // Store workflow config for resume
+  _workflowPrompt = prompt;
+  _workflowAutoMode = !!opts.autoMode;
+
   const args = [octopus, 'start'];
-  if (opts.autoMode) args.push('--auto');
+  // In approval mode: only run plan phase. In auto mode: run both.
+  if (!opts.autoMode) args.push('--phase', 'plan');
   args.push(prompt);
   workflowProc = spawn('node', args, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -351,7 +441,7 @@ function startWorkflow(prompt, opts = {}) {
   });
 
   workflowProc.on('close', (code) => {
-    console.log(`[dashboard-server] workflow finished (exit ${code})`);
+    console.log(`[dashboard-server] workflow process finished (exit ${code})`);
     // Sync state.json with actual result files — fix any stuck 'working' tasks
     try {
       const stateFile = path.join(TRIO_DIR, 'state.json');
@@ -378,21 +468,35 @@ function startWorkflow(prompt, opts = {}) {
             }
           }
         }
-        if (changed || st.phase !== 'complete') {
+        // Determine final phase: if plan-only mode succeeded, go to awaiting-approval
+        const allPlanDone = st.tasks.length > 0 && st.tasks.every(t => t.phase !== 'execute') && st.tasks.every(t => t.status === 'done');
+        const isPlanOnly = !_workflowAutoMode && allPlanDone && code === 0;
+
+        if (isPlanOnly) {
+          st.phase = 'awaiting-approval';
+          const done = st.tasks.filter(t => t.status === 'done').length;
+          st.phaseProgress = st.tasks.length ? done / st.tasks.length : 1;
+          writeJsonFileSync(stateFile, st);
+          console.log('[dashboard-server] plan complete — awaiting approval');
+        } else if (changed || st.phase !== 'complete') {
           st.phase = 'complete';
           const done = st.tasks.filter(t => t.status === 'done').length;
           st.phaseProgress = st.tasks.length ? done / st.tasks.length : 1;
-          const tmp = stateFile + '.tmp';
-          fs.writeFileSync(tmp, JSON.stringify(st, null, 2), 'utf8');
-          fs.renameSync(tmp, stateFile);
+          writeJsonFileSync(stateFile, st);
           console.log(`[dashboard-server] synced state.json (${changed ? 'fixed stuck tasks' : 'marked complete'})`);
         }
       }
     } catch (e) {
       console.error(`[dashboard-server] state sync error: ${e.message}`);
     }
-    broadcast('workflow-done', { code });
     workflowProc = null;
+    // Don't broadcast workflow-done if plan is awaiting approval
+    const finalState = parseJsonFileSync(path.join(TRIO_DIR, 'state.json'));
+    if (finalState && finalState.phase === 'awaiting-approval') {
+      broadcast('state-update', finalState);
+    } else {
+      broadcast('workflow-done', { code });
+    }
   });
 
   workflowProc.on('error', (err) => {

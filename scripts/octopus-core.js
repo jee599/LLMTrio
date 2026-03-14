@@ -204,41 +204,28 @@ function spawnAgent(agentId, content, taskInfo) {
   });
 }
 
-// --- Approval gate ---
-const APPROVAL_FILE = path.join(TRIO_DIR, 'commands', 'approval.json');
-
-function waitForApproval() {
-  return new Promise((resolve) => {
-    log('Waiting for user approval...');
-    const check = () => {
-      if (shuttingDown) return resolve({ approved: false });
-      try {
-        if (fs.existsSync(APPROVAL_FILE)) {
-          const data = readJson(APPROVAL_FILE);
-          fs.unlinkSync(APPROVAL_FILE);
-          resolve(data || { approved: true });
-          return;
-        }
-      } catch {}
-      setTimeout(check, 500);
-    };
-    check();
-  });
-}
-
 // --- Workflow engine ---
 async function runWorkflow(prompt, opts = {}) {
-  const approvalMode = opts.approvalMode !== false; // default: approval mode ON
   const state = loadState();
-  const workflowId = 'wf-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  Object.assign(state, { phase: 'plan', phaseProgress: 0, sessionTokens: 0, tasks: [], prompt, workflowId, approvalMode });
-  saveState(state);
+  const onlyPhase = opts.onlyPhase || null; // 'plan' or 'execute' or null (both)
+
+  // If resuming execute phase, keep existing state
+  if (onlyPhase === 'execute') {
+    state.phase = 'execute';
+    saveState(state);
+  } else {
+    const workflowId = 'wf-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    Object.assign(state, { phase: 'plan', phaseProgress: 0, sessionTokens: 0, tasks: [], prompt, workflowId });
+    saveState(state);
+  }
 
   let prevPhaseOutputs = '';
   const phases = getPhases();
 
   for (const phase of PHASE_ORDER) {
     if (shuttingDown) break;
+    // Skip phases not matching onlyPhase filter
+    if (onlyPhase && phase !== onlyPhase) continue;
     if (!phases[phase] || phases[phase].length === 0) { log(`Skipping empty phase: ${phase}`); continue; }
     state.phase = phase;
     state.phaseProgress = 0;
@@ -251,7 +238,7 @@ async function runWorkflow(prompt, opts = {}) {
       return {
         id: genTaskId(), name: t.name, type: t.type, phase,
         agent, model, status: 'pending', elapsed: 0, tokens: 0,
-        workflowId, workflowPrompt: prompt,
+        workflowId: state.workflowId, workflowPrompt: prompt,
       };
     });
     state.tasks.push(...phaseTasks);
@@ -322,22 +309,6 @@ async function runWorkflow(prompt, opts = {}) {
       break;
     }
 
-    // Approval gate: pause after plan phase and wait for user
-    if (phase === 'plan' && approvalMode) {
-      state.phase = 'awaiting-approval';
-      saveState(state);
-      log('Plan complete — awaiting user approval');
-      const approval = await waitForApproval();
-      if (shuttingDown) break;
-      if (!approval.approved) {
-        log('User rejected plan — stopping workflow');
-        state.phase = 'complete';
-        state.phaseProgress = 0.5;
-        saveState(state);
-        break;
-      }
-      log('User approved — proceeding to execute phase');
-    }
   }
 
   if (state.phase !== 'complete') {
@@ -393,12 +364,17 @@ async function main() {
   writePid();
 
   if (command === 'start') {
-    // Check for --auto flag (no approval needed)
-    const autoMode = rest.includes('--auto');
-    const promptWords = rest.filter(w => w !== '--auto');
+    // Parse flags
+    const phaseIdx = rest.indexOf('--phase');
+    let onlyPhase = null;
+    const flags = ['--auto', '--phase'];
+    if (phaseIdx !== -1) {
+      onlyPhase = rest[phaseIdx + 1] || null;
+    }
+    const promptWords = rest.filter((w, i) => !flags.includes(w) && (i === 0 || !flags.includes(rest[i - 1])));
     const prompt = promptWords.join(' ');
-    if (!prompt) { log('Missing prompt'); process.exit(1); }
-    await runWorkflow(prompt, { approvalMode: !autoMode });
+    if (!prompt && !onlyPhase) { log('Missing prompt'); process.exit(1); }
+    await runWorkflow(prompt || '', { onlyPhase });
   } else if (command === 'task') {
     const [agent, ...words] = rest;
     const prompt = words.join(' ');
