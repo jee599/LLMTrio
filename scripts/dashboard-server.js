@@ -379,11 +379,27 @@ function receiveCommand(req, res) {
   });
 }
 
+function killOldOctopusProcesses() {
+  // Kill any lingering octopus-core processes from previous runs
+  const pidDir = path.join(TRIO_DIR, 'pids');
+  try {
+    const pidFile = path.join(pidDir, 'octopus-core.pid');
+    if (fs.existsSync(pidFile)) {
+      const pid = parseInt(fs.readFileSync(pidFile, 'utf8'));
+      if (pid) {
+        try { process.kill(pid, 'SIGTERM'); console.log(`[dashboard-server] killed old octopus-core PID ${pid}`); } catch {}
+      }
+      try { fs.unlinkSync(pidFile); } catch {}
+    }
+  } catch {}
+}
+
 function startWorkflow(prompt, opts = {}) {
   if (workflowProc) {
     console.log('[dashboard-server] workflow already running, killing previous');
     try { workflowProc.kill('SIGTERM'); } catch {}
   }
+  killOldOctopusProcesses();
 
   // Clear server-side result cache
   lastGoodData.clear();

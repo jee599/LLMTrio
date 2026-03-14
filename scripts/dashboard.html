@@ -4914,6 +4914,13 @@ ${rawOutput.slice(0, 4000)}`,
     if (overlay) overlay.remove();
     const badge = $('notifBadge');
     if (badge) badge.classList.remove('show');
+    // Immediately update UI to show execute is starting
+    state.phase = 'execute';
+    queueRender();
+    renderActiveTab();
+    // Poll for state update since execute phase spawns asynchronously
+    setTimeout(() => fetchFullState(), 1500);
+    setTimeout(() => fetchFullState(), 4000);
   };
 
   window.rejectWorkflow = function() {
@@ -4922,6 +4929,9 @@ ${rawOutput.slice(0, 4000)}`,
     if (overlay) overlay.remove();
     const badge = $('notifBadge');
     if (badge) badge.classList.remove('show');
+    state.phase = 'complete';
+    queueRender();
+    renderActiveTab();
   };
 
   window.retryFailed = function() {
