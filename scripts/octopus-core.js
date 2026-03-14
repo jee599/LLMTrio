@@ -28,13 +28,37 @@ const AGENT_CMD = {
   gemini: (c) => ['gemini', ['-p', c]],
 };
 
-const PHASES = {
-  discover: [{ name: 'requirements-analysis', type: 'research' }, { name: 'tech-research', type: 'research' }],
-  define: [{ name: 'architecture-design', type: 'architecture' }, { name: 'api-design', type: 'architecture' }],
-  develop: [{ name: 'implementation', type: 'implementation' }, { name: 'testing', type: 'testing' }],
-  deliver: [{ name: 'code-review', type: 'code-review' }, { name: 'documentation', type: 'documentation' }],
+// 2-phase design: all 3 agents work simultaneously in each phase
+const ALL_TASKS = {
+  plan: [
+    { name: 'research', type: 'research', agent: 'gemini' },
+    { name: 'architecture', type: 'architecture', agent: 'claude' },
+    { name: 'scaffold', type: 'implementation', agent: 'codex' },
+  ],
+  execute: [
+    { name: 'implementation', type: 'implementation', agent: 'codex' },
+    { name: 'code-review', type: 'code-review', agent: 'claude' },
+    { name: 'documentation', type: 'documentation', agent: 'gemini' },
+  ],
 };
-const PHASE_ORDER = ['discover', 'define', 'develop', 'deliver'];
+const PHASE_ORDER = ['plan', 'execute'];
+
+// Filter tasks based on workflow settings in budget.json
+function getPhases() {
+  const b = readJson(path.join(TRIO_DIR, 'budget.json'));
+  const wf = b?.workflow;
+  if (!wf) return ALL_TASKS;
+  const phases = {};
+  for (const phase of PHASE_ORDER) {
+    const phaseSettings = wf[phase];
+    phases[phase] = ALL_TASKS[phase].filter((t) => {
+      if (!phaseSettings) return true;
+      const key = t.type === 'implementation' && phase === 'plan' ? 'scaffold' : t.name;
+      return phaseSettings[key] !== false;
+    });
+  }
+  return phases;
+}
 
 let shuttingDown = false;
 const activeProcs = new Map();
@@ -59,18 +83,17 @@ function loadModels() {
   return Object.fromEntries(data.models.map((m) => [m.id, m]));
 }
 
-function estimateCost(chars, modelId, models) {
-  const model = models[modelId];
-  if (!model) return 0;
-  return (Math.ceil(chars / 4) / 1_000_000) * model.pricing.output;
+function estimateTokens(chars) {
+  return Math.ceil(chars / 4);
 }
 
-function checkBudget(sessionCost) {
+function loadTimeout() {
   const b = readJson(path.join(TRIO_DIR, 'budget.json'));
-  if (!b) return { ok: true };
-  if (sessionCost >= b.session_limit) return { ok: false, reason: `Session limit $${b.session_limit} reached` };
-  if (sessionCost >= b.session_limit * b.warn_at)
-    return { ok: true, warn: `At ${Math.round((sessionCost / b.session_limit) * 100)}% of session budget` };
+  return (b && b.timeout_seconds) || 120; // default 2 minutes
+}
+
+function checkBudget() {
+  // Subscription models — no cost limits needed
   return { ok: true };
 }
 
@@ -98,7 +121,7 @@ function resolveModelId(agent) {
 
 // --- State ---
 function loadState() {
-  return readJson(path.join(TRIO_DIR, 'state.json')) || { phase: 'discover', phaseProgress: 0, sessionCost: 0, tasks: [] };
+  return readJson(path.join(TRIO_DIR, 'state.json')) || { phase: 'discover', phaseProgress: 0, sessionTokens: 0, tasks: [] };
 }
 function saveState(s) { writeJsonAtomic(path.join(TRIO_DIR, 'state.json'), s); }
 
@@ -113,23 +136,28 @@ function spawnAgent(agentId, content, taskInfo) {
     const t0 = Date.now();
     let output = '', stderr = '';
     const resultFile = path.join(RESULTS_DIR, `${taskInfo.id}.json`);
-    const models = loadModels();
-    const modelId = resolveModelId(agentId);
 
     const writeResult = (status, extra = {}) => {
       const elapsed = Math.round((Date.now() - t0) / 1000);
-      const cost = estimateCost(output.length, modelId, models);
+      const tokens = estimateTokens(output.length);
       const lastLines = output.trim().split('\n').slice(-5);
       writeJsonAtomic(resultFile, {
         agent: agentId, status, task: taskInfo.name, taskId: taskInfo.id,
-        lastLines, elapsed, cost, output: output.slice(-4000), ...extra,
+        lastLines, elapsed, tokens, output: output.slice(-4000), ...extra,
       });
-      return { cost, elapsed };
+      return { tokens, elapsed };
     };
 
     let proc;
     try {
-      proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } });
+      const spawnEnv = { ...process.env };
+      // Unset Claude Code env vars to prevent nested session detection
+      delete spawnEnv.CLAUDECODE;
+      delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
+      delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+      // Remove API key so Claude CLI uses subscription auth instead
+      delete spawnEnv.ANTHROPIC_API_KEY;
+      proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: spawnEnv, cwd: PROJECT_ROOT });
     } catch (err) {
       log(`Failed to spawn ${agentId}: ${err.message}`);
       writeResult('error', { error: err.message });
@@ -139,47 +167,97 @@ function spawnAgent(agentId, content, taskInfo) {
     activeProcs.set(taskInfo.id, proc);
     writeResult('running');
     log(`[${agentId}] started "${taskInfo.name}" (${taskInfo.id})`);
+    // Notify caller that process actually spawned (for status tracking)
+    if (taskInfo._onSpawned) taskInfo._onSpawned();
+
+    // Timeout: kill process if it takes too long
+    const timeoutSec = loadTimeout();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      log(`[${agentId}] TIMEOUT after ${timeoutSec}s — killing "${taskInfo.name}"`);
+      try { proc.kill('SIGTERM'); } catch {}
+      setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 3000);
+    }, timeoutSec * 1000);
 
     proc.stdout.on('data', (chunk) => { output += chunk.toString(); writeResult('running'); });
     proc.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
     proc.on('error', (err) => {
+      clearTimeout(timer);
       log(`[${agentId}] error: ${err.message}`);
-      const { cost, elapsed } = writeResult('error', { error: err.message });
+      const { tokens, elapsed } = writeResult('error', { error: err.message });
       activeProcs.delete(taskInfo.id);
-      resolve({ success: false, error: err.message, cost, elapsed });
+      resolve({ success: false, error: err.message, tokens, elapsed });
     });
 
     proc.on('close', (code) => {
+      clearTimeout(timer);
       activeProcs.delete(taskInfo.id);
-      const ok = code === 0;
-      const extra = ok ? {} : { error: stderr.slice(-1000) || `Exit code ${code}` };
-      const { cost, elapsed } = writeResult(ok ? 'done' : 'error', extra);
-      log(`[${agentId}] ${ok ? 'done' : 'error'} "${taskInfo.name}" (${elapsed}s, $${cost.toFixed(4)})`);
-      resolve({ success: ok, cost, elapsed, output });
+      const ok = code === 0 && !timedOut;
+      const extra = timedOut ? { error: `Timed out after ${timeoutSec}s` }
+        : ok ? {} : { error: stderr.slice(-1000) || `Exit code ${code}` };
+      const { tokens, elapsed } = writeResult(ok ? 'done' : 'error', extra);
+      log(`[${agentId}] ${ok ? 'done' : 'error'} "${taskInfo.name}" (${elapsed}s, ~${tokens} tokens)`);
+      resolve({ success: ok, tokens, elapsed, output });
     });
   });
 }
 
+// --- Approval gate ---
+const APPROVAL_FILE = path.join(TRIO_DIR, 'commands', 'approval.json');
+
+function waitForApproval() {
+  return new Promise((resolve) => {
+    log('Waiting for user approval...');
+    const check = () => {
+      if (shuttingDown) return resolve({ approved: false });
+      try {
+        if (fs.existsSync(APPROVAL_FILE)) {
+          const data = readJson(APPROVAL_FILE);
+          fs.unlinkSync(APPROVAL_FILE);
+          resolve(data || { approved: true });
+          return;
+        }
+      } catch {}
+      setTimeout(check, 500);
+    };
+    check();
+  });
+}
+
 // --- Workflow engine ---
-async function runWorkflow(prompt) {
+async function runWorkflow(prompt, opts = {}) {
+  const approvalMode = opts.approvalMode !== false; // default: approval mode ON
   const state = loadState();
-  Object.assign(state, { phase: 'discover', phaseProgress: 0, sessionCost: 0, tasks: [] });
+  const workflowId = 'wf-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  Object.assign(state, { phase: 'plan', phaseProgress: 0, sessionTokens: 0, tasks: [], prompt, workflowId, approvalMode });
   saveState(state);
+
+  let prevPhaseOutputs = '';
+  const phases = getPhases();
 
   for (const phase of PHASE_ORDER) {
     if (shuttingDown) break;
+    if (!phases[phase] || phases[phase].length === 0) { log(`Skipping empty phase: ${phase}`); continue; }
     state.phase = phase;
     state.phaseProgress = 0;
     saveState(state);
     log(`--- Phase: ${phase} ---`);
 
-    const phaseTasks = PHASES[phase].map((t) => ({
-      id: genTaskId(), name: t.name, type: t.type,
-      agent: resolveAgent(t.type), status: 'pending', elapsed: 0, cost: 0,
-    }));
+    const phaseTasks = phases[phase].map((t) => {
+      const agent = t.agent || resolveAgent(t.type);
+      const model = resolveModelId(agent) || agent;
+      return {
+        id: genTaskId(), name: t.name, type: t.type, phase,
+        agent, model, status: 'pending', elapsed: 0, tokens: 0,
+        workflowId, workflowPrompt: prompt,
+      };
+    });
     state.tasks.push(...phaseTasks);
     saveState(state);
+
+    const phaseOutputs = [];
 
     await Promise.all(phaseTasks.map(async (task) => {
       if (shuttingDown) return;
@@ -191,19 +269,80 @@ async function runWorkflow(prompt) {
       }
       if (budgetCheck.warn) log(budgetCheck.warn);
 
-      task.status = 'working';
-      saveState(state);
-      const result = await spawnAgent(task.agent, `[${phase}/${task.name}] ${prompt}`, task);
+      // Status stays 'pending' until process actually spawns
+      // Set callback to update status when spawn succeeds
+      task._onSpawned = () => {
+        task.status = 'working';
+        saveState(state);
+      };
+
+      // Build role-specific prompt with context
+      // Detect Korean input → respond in Korean
+      const langNote = /[가-힣]/.test(prompt) ? '\n\n반드시 한국어로 응답하세요.'
+        : /[\u4e00-\u9fff]/.test(prompt) ? '\n\nPlease respond entirely in Chinese (简体中文).'
+        : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
+        : '';
+      const rolePrompts = {
+        research: `You are a research analyst. DO NOT execute the task yourself. DO NOT touch files or run commands. Only ANALYZE the request and output a short brief (under 150 words):\n- What the user wants\n- What approach to take\n- Key risks or constraints\n\nUser request: "${prompt}"${langNote}`,
+        architecture: `You are an architect. DO NOT write code. Output a short plan (under 200 words): components, file structure, interactions.\n\nUser request: "${prompt}"${langNote}`,
+        scaffold: `Create the minimal project structure needed. Be concise.\n\nTask: ${prompt}${langNote}`,
+        implementation: `Write the core code. Be concise and focused.\n\nTask: ${prompt}${langNote}`,
+        'code-review': `Review the code. List max 5 issues (bugs, security, improvements). Be specific, no filler.\n\nTask: ${prompt}${langNote}`,
+        documentation: `Write a short README with usage examples. Keep it under 200 words.\n\nTask: ${prompt}${langNote}`,
+      };
+      let fullPrompt = rolePrompts[task.type] || `[${phase}/${task.name}] ${prompt}`;
+      if (prevPhaseOutputs) {
+        fullPrompt += `\n\n--- Previous phase results ---\n${prevPhaseOutputs}`;
+      }
+
+      const result = await spawnAgent(task.agent, fullPrompt, task);
       task.status = result.success ? 'done' : 'error';
       task.elapsed = result.elapsed || 0;
-      task.cost = result.cost || 0;
+      task.tokens = result.tokens || 0;
       if (result.error) task.error = result.error;
-      state.sessionCost += task.cost;
+      if (result.output) phaseOutputs.push(`[${task.name}]: ${result.output.slice(-1500)}`);
+      state.sessionTokens += task.tokens;
       saveState(state);
     }));
 
+    // Pass this phase's outputs to next phase
+    prevPhaseOutputs = phaseOutputs.join('\n\n');
+
     const done = phaseTasks.filter((t) => t.status === 'done').length;
+    const failed = phaseTasks.filter((t) => t.status === 'error').length;
     state.phaseProgress = done / phaseTasks.length;
+    saveState(state);
+
+    // Stop workflow if any task in this phase failed
+    if (failed > 0) {
+      log(`Phase "${phase}" had ${failed} failure(s) — stopping workflow`);
+      state.phase = 'complete';
+      state.phaseProgress = done / phaseTasks.length;
+      saveState(state);
+      break;
+    }
+
+    // Approval gate: pause after plan phase and wait for user
+    if (phase === 'plan' && approvalMode) {
+      state.phase = 'awaiting-approval';
+      saveState(state);
+      log('Plan complete — awaiting user approval');
+      const approval = await waitForApproval();
+      if (shuttingDown) break;
+      if (!approval.approved) {
+        log('User rejected plan — stopping workflow');
+        state.phase = 'complete';
+        state.phaseProgress = 0.5;
+        saveState(state);
+        break;
+      }
+      log('User approved — proceeding to execute phase');
+    }
+  }
+
+  if (state.phase !== 'complete') {
+    state.phase = 'complete';
+    state.phaseProgress = 1;
     saveState(state);
   }
   log('Workflow complete');
@@ -217,7 +356,7 @@ async function runSingleTask(agentName, prompt) {
   const task = { id: genTaskId(), name: 'single-task', type: 'implementation' };
   const state = loadState();
   const result = await spawnAgent(agent, prompt, task);
-  state.sessionCost += result.cost || 0;
+  state.sessionTokens += result.tokens || 0;
   saveState(state);
 
   if (result.success) process.stdout.write(result.output || '');
@@ -254,9 +393,12 @@ async function main() {
   writePid();
 
   if (command === 'start') {
-    const prompt = rest.join(' ');
+    // Check for --auto flag (no approval needed)
+    const autoMode = rest.includes('--auto');
+    const promptWords = rest.filter(w => w !== '--auto');
+    const prompt = promptWords.join(' ');
     if (!prompt) { log('Missing prompt'); process.exit(1); }
-    await runWorkflow(prompt);
+    await runWorkflow(prompt, { approvalMode: !autoMode });
   } else if (command === 'task') {
     const [agent, ...words] = rest;
     const prompt = words.join(' ');

@@ -6,6 +6,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execSync, spawn } = require('child_process');
 
 
 const HOST = '127.0.0.1';
@@ -99,6 +100,7 @@ function addSseClient(res) {
 
 function broadcast(eventType, data) {
   const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+  if (sseClients.length === 0) return;
   for (const client of sseClients) {
     try {
       client.write(payload);
@@ -110,17 +112,21 @@ function broadcast(eventType, data) {
 
 // --- fs.watch with debounce ---
 
+let stateWatcher = null;
+
 function startWatcher() {
-  let debounceTimer = null;
+  const debounceTimers = new Map();
 
   try {
     watcher = fs.watch(RESULTS_DIR, { recursive: false }, (eventType, filename) => {
       if (!filename) return;
 
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
+      // Per-file debounce so multiple files don't cancel each other
+      if (debounceTimers.has(filename)) clearTimeout(debounceTimers.get(filename));
+      debounceTimers.set(filename, setTimeout(() => {
+        debounceTimers.delete(filename);
         handleResultsChange(filename);
-      }, DEBOUNCE_MS);
+      }, DEBOUNCE_MS));
     });
 
     watcher.on('error', (err) => {
@@ -128,6 +134,22 @@ function startWatcher() {
     });
   } catch (err) {
     console.error(`[watcher] failed to start: ${err.message}`);
+  }
+
+  // Also watch state.json for workflow phase updates
+  const stateFile = path.join(TRIO_DIR, 'state.json');
+  let stateDebounce = null;
+  try {
+    stateWatcher = fs.watch(stateFile, () => {
+      if (stateDebounce) clearTimeout(stateDebounce);
+      stateDebounce = setTimeout(() => {
+        const data = parseJsonFileSync(stateFile);
+        if (data) broadcast('state-update', data);
+      }, DEBOUNCE_MS);
+    });
+    stateWatcher.on('error', () => {});
+  } catch {
+    // state.json may not exist yet
   }
 }
 
@@ -166,11 +188,24 @@ function handleRequest(req, res) {
   } else if (req.method === 'GET' && pathname === '/api/state') {
     serveJson(res, path.join(TRIO_DIR, 'state.json'));
   } else if (req.method === 'GET' && pathname === '/api/models') {
-    serveJson(res, path.join(TRIO_DIR, 'models.json'));
+    const modelsFile = path.join(TRIO_DIR, 'models.json');
+    try {
+      const data = JSON.parse(fs.readFileSync(modelsFile, 'utf8'));
+      const stat = fs.statSync(modelsFile);
+      const result = { models: Array.isArray(data) ? data : (data.models || []), lastUpdated: stat.mtime.toISOString() };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ models: [], lastUpdated: null }));
+    }
   } else if (req.method === 'GET' && pathname === '/api/routing') {
     serveJson(res, path.join(TRIO_DIR, 'routing.json'));
   } else if (req.method === 'GET' && pathname === '/api/budget') {
     serveJson(res, path.join(TRIO_DIR, 'budget.json'));
+  } else if (req.method === 'GET' && pathname.startsWith('/api/result/')) {
+    const taskId = pathname.split('/api/result/')[1];
+    serveJson(res, path.join(RESULTS_DIR, `${taskId}.json`));
   } else if (req.method === 'POST' && pathname === '/api/command') {
     receiveCommand(req, res);
   } else if (req.method === 'GET' && pathname === '/api/auth-status') {
@@ -181,6 +216,8 @@ function handleRequest(req, res) {
     installCli(req, res);
   } else if (req.method === 'POST' && pathname === '/api/cli-login') {
     cliLogin(req, res);
+  } else if (req.method === 'POST' && pathname === '/api/run-agent') {
+    runSingleAgent(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -193,6 +230,8 @@ const PENDING_FILE = path.join(TRIO_DIR, 'commands', 'pending.json');
 const VALID_TYPES = ['prompt','pause','cancel','approve','reject','reassign',
   'update-routing','update-budget','debate-input','merge'];
 const VALID_TARGETS = ['claude','codex','gemini'];
+
+let workflowProc = null;
 
 function receiveCommand(req, res) {
   let body = '';
@@ -212,12 +251,149 @@ function receiveCommand(req, res) {
       }
       cmd.timestamp = new Date().toISOString();
       appendToPending(cmd);
+
+      // If workflow prompt, spawn octopus-core.js
+      if (cmd.type === 'prompt' && cmd.workflow) {
+        startWorkflow(cmd.content, { autoMode: cmd.autoMode });
+      }
+      // Handle plan approval/rejection
+      if (cmd.type === 'approve' && cmd.workflowApproval) {
+        const approvalFile = path.join(TRIO_DIR, 'commands', 'approval.json');
+        writeJsonFileSync(approvalFile, { approved: true, timestamp: new Date().toISOString() });
+        console.log('[dashboard-server] plan approved');
+      }
+      if (cmd.type === 'reject' && cmd.workflowApproval) {
+        const approvalFile = path.join(TRIO_DIR, 'commands', 'approval.json');
+        writeJsonFileSync(approvalFile, { approved: false, reason: cmd.content || '', timestamp: new Date().toISOString() });
+        console.log('[dashboard-server] plan rejected');
+      }
+      // Handle update-budget directly (no need for command-watcher)
+      if (cmd.type === 'update-budget' && cmd.content) {
+        try {
+          const budgetData = JSON.parse(cmd.content);
+          writeJsonFileSync(path.join(TRIO_DIR, 'budget.json'), budgetData);
+          console.log('[dashboard-server] updated budget.json');
+        } catch (e) {
+          console.error('[dashboard-server] failed to update budget.json:', e.message);
+        }
+      }
+      // Handle cancel — kill workflow process
+      if (cmd.type === 'cancel' && workflowProc) {
+        console.log('[dashboard-server] cancelling workflow');
+        try { workflowProc.kill('SIGTERM'); } catch {}
+        workflowProc = null;
+        broadcast('workflow-done', { code: -1, cancelled: true });
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, queued: cmd }));
     } catch {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid JSON' }));
     }
+  });
+}
+
+function startWorkflow(prompt, opts = {}) {
+  if (workflowProc) {
+    console.log('[dashboard-server] workflow already running, killing previous');
+    try { workflowProc.kill('SIGTERM'); } catch {}
+  }
+
+  // Clear server-side result cache
+  lastGoodData.clear();
+
+  // Clear previous results AND state
+  try {
+    const files = fs.readdirSync(RESULTS_DIR);
+    for (const f of files) {
+      if (f.endsWith('.json')) {
+        try { fs.unlinkSync(path.join(RESULTS_DIR, f)); } catch {}
+      }
+    }
+    console.log(`[dashboard-server] cleared ${files.length} previous result files`);
+  } catch {}
+  // Reset state.json immediately so dashboard doesn't show stale data
+  try {
+    const stateFile = path.join(TRIO_DIR, 'state.json');
+    writeJsonFileSync(stateFile, { phase: 'plan', phaseProgress: 0, sessionTokens: 0, tasks: [], prompt, workflowId: '' });
+    console.log('[dashboard-server] reset state.json');
+  } catch {}
+  // Clear approval file if exists
+  try { fs.unlinkSync(path.join(TRIO_DIR, 'commands', 'approval.json')); } catch {}
+
+  const octopus = path.join(__dirname, 'octopus-core.js');
+  console.log(`[dashboard-server] starting workflow: ${prompt.slice(0, 80)}...`);
+
+  const spawnEnv = { ...process.env };
+  delete spawnEnv.CLAUDECODE;
+  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
+  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  delete spawnEnv.ANTHROPIC_API_KEY;
+  const args = [octopus, 'start'];
+  if (opts.autoMode) args.push('--auto');
+  args.push(prompt);
+  workflowProc = spawn('node', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: spawnEnv,
+  });
+
+  workflowProc.stdout.on('data', (chunk) => {
+    const lines = chunk.toString().trim().split('\n');
+    lines.forEach(line => {
+      console.log(`[octopus] ${line}`);
+      broadcast('workflow-log', { message: line });
+    });
+  });
+
+  workflowProc.stderr.on('data', (chunk) => {
+    console.error(`[octopus-err] ${chunk.toString().trim()}`);
+  });
+
+  workflowProc.on('close', (code) => {
+    console.log(`[dashboard-server] workflow finished (exit ${code})`);
+    // Sync state.json with actual result files — fix any stuck 'working' tasks
+    try {
+      const stateFile = path.join(TRIO_DIR, 'state.json');
+      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      let changed = false;
+      if (st.tasks) {
+        for (const task of st.tasks) {
+          if (task.status === 'working' || (task.status === 'pending' && st.phase === 'complete')) {
+            const rf = path.join(RESULTS_DIR, `${task.id}.json`);
+            try {
+              const result = JSON.parse(fs.readFileSync(rf, 'utf8'));
+              if (result.status === 'done' || result.status === 'error') {
+                task.status = result.status;
+                task.elapsed = result.elapsed || task.elapsed;
+                task.tokens = result.tokens || task.tokens;
+                if (result.error) task.error = result.error;
+                changed = true;
+              }
+            } catch {}
+          }
+        }
+        if (changed || st.phase !== 'complete') {
+          st.phase = 'complete';
+          const done = st.tasks.filter(t => t.status === 'done').length;
+          st.phaseProgress = st.tasks.length ? done / st.tasks.length : 1;
+          const tmp = stateFile + '.tmp';
+          fs.writeFileSync(tmp, JSON.stringify(st, null, 2), 'utf8');
+          fs.renameSync(tmp, stateFile);
+          console.log(`[dashboard-server] synced state.json (${changed ? 'fixed stuck tasks' : 'marked complete'})`);
+        }
+      }
+    } catch (e) {
+      console.error(`[dashboard-server] state sync error: ${e.message}`);
+    }
+    broadcast('workflow-done', { code });
+    workflowProc = null;
+  });
+
+  workflowProc.on('error', (err) => {
+    console.error(`[dashboard-server] workflow spawn error: ${err.message}`);
+    broadcast('workflow-error', { error: err.message });
+    workflowProc = null;
   });
 }
 
@@ -238,8 +414,6 @@ function appendToPending(cmd) {
 }
 
 // --- GET /api/auth-status ---
-
-const { execSync } = require('child_process');
 
 function checkCli(cmd) {
   try {
@@ -270,8 +444,10 @@ function serveAuthStatus(res) {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const claudeAuth = fs.existsSync(path.join(home, '.claude', '.credentials.json'))
     || !!process.env.ANTHROPIC_API_KEY || !!savedKeys.ANTHROPIC_API_KEY;
-  const codexAuth = !!process.env.OPENAI_API_KEY || !!savedKeys.OPENAI_API_KEY;
-  const geminiAuth = !!process.env.GOOGLE_API_KEY || !!savedKeys.GOOGLE_API_KEY;
+  const codexAuth = !!process.env.OPENAI_API_KEY || !!savedKeys.OPENAI_API_KEY
+    || fs.existsSync(path.join(home, '.codex', 'auth.json'));
+  const geminiAuth = !!process.env.GEMINI_API_KEY || !!savedKeys.GEMINI_API_KEY
+    || !!process.env.GOOGLE_API_KEY || !!savedKeys.GOOGLE_API_KEY;
 
   const status = {
     claude: { ...claude, authenticated: claude.installed && claudeAuth },
@@ -295,7 +471,7 @@ function saveApiKey(req, res) {
       const validProviders = {
         anthropic: 'ANTHROPIC_API_KEY',
         openai: 'OPENAI_API_KEY',
-        google: 'GOOGLE_API_KEY',
+        google: 'GEMINI_API_KEY',
       };
       const envVar = validProviders[provider];
       if (!envVar || !key) {
@@ -339,6 +515,7 @@ function installCli(req, res) {
   req.on('data', chunk => { body += chunk; });
   req.on('end', () => {
     try {
+      if (!body) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'Empty request body' })); return; }
       const { provider } = JSON.parse(body);
       const cmd = INSTALL_COMMANDS[provider];
       if (!cmd) {
@@ -362,9 +539,10 @@ function installCli(req, res) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: err.message }));
       });
-    } catch {
+    } catch (e) {
+      console.error('[install-cli] error:', e.message, 'body:', body);
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      res.end(JSON.stringify({ ok: false, error: e.message }));
     }
   });
 }
@@ -373,7 +551,7 @@ function installCli(req, res) {
 
 const LOGIN_COMMANDS = {
   claude: 'claude login',
-  gemini: 'gemini auth login',
+  codex: 'codex login',
 };
 
 function cliLogin(req, res) {
@@ -385,7 +563,7 @@ function cliLogin(req, res) {
       const cmd = LOGIN_COMMANDS[provider];
       if (!cmd) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid provider. Only claude and gemini support CLI login.' }));
+        res.end(JSON.stringify({ error: 'Invalid provider.' }));
         return;
       }
       broadcast('setup-update', { provider, status: 'logging-in' });
@@ -438,11 +616,11 @@ function serveSse(res) {
 function serveJson(res, filePath) {
   const data = parseJsonFileSync(filePath);
   if (data === null) {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ error: 'File not found or unreadable', path: path.basename(filePath) }));
     return;
   }
-  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
 }
 
@@ -463,12 +641,18 @@ function shutdown(signal) {
 
   // Stop fs.watch
   if (watcher) {
-    try {
-      watcher.close();
-    } catch {
-      // ignore
-    }
+    try { watcher.close(); } catch {}
     watcher = null;
+  }
+  if (stateWatcher) {
+    try { stateWatcher.close(); } catch {}
+    stateWatcher = null;
+  }
+
+  // Kill workflow process if running
+  if (workflowProc) {
+    try { workflowProc.kill('SIGTERM'); } catch {}
+    workflowProc = null;
   }
 
   // Close HTTP server
@@ -490,6 +674,63 @@ function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// --- POST /api/run-agent: run a single agent and return output ---
+
+const AGENT_CMDS = {
+  claude: (p) => ['claude', ['-p', p]],
+  codex: (p) => ['codex', ['exec', p]],
+  gemini: (p) => ['gemini', ['-p', p]],
+};
+
+function runSingleAgent(req, res) {
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { agent, prompt, timeout } = JSON.parse(body);
+      const cmdFn = AGENT_CMDS[agent];
+      if (!cmdFn || !prompt) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid agent or prompt' }));
+        return;
+      }
+
+      const [cmd, args] = cmdFn(prompt);
+      const spawnEnv = { ...process.env };
+      delete spawnEnv.CLAUDECODE;
+      delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
+      delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+      delete spawnEnv.ANTHROPIC_API_KEY;
+
+      let output = '', stderr = '';
+      const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: spawnEnv });
+
+      const timeoutMs = (timeout || 60) * 1000;
+      const timer = setTimeout(() => {
+        try { proc.kill('SIGTERM'); } catch {}
+      }, timeoutMs);
+
+      proc.stdout.on('data', d => { output += d.toString(); });
+      proc.stderr.on('data', d => { stderr += d.toString(); });
+
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        res.writeHead(code === 0 ? 200 : 500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: code === 0, output: output.slice(-4000), error: stderr.slice(-1000) || (code !== 0 ? `Exit code ${code}` : '') }));
+      });
+
+      proc.on('error', (err) => {
+        clearTimeout(timer);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      });
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+  });
+}
 
 // --- Start ---
 

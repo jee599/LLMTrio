@@ -61,14 +61,14 @@
   /* ── Layout ── */
   #app {
     display: grid;
-    grid-template-rows: 56px 1fr 52px;
-    grid-template-columns: 420px 1fr;
+    grid-template-rows: 56px 1fr auto;
+    grid-template-columns: var(--left-width, 400px) 1fr;
     grid-template-areas:
       "topbar  topbar"
       "left    main"
       "bottom  bottom";
     height: 100vh;
-    gap: 0;
+    gap: 1px;
     background: var(--bg-primary);
   }
 
@@ -96,75 +96,6 @@
     background-clip: text;
   }
 
-  .phase-bar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    flex: 1;
-    max-width: 640px;
-  }
-
-  .phase-step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: var(--radius);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    position: relative;
-    transition: all 0.3s ease;
-    cursor: default;
-  }
-
-  .phase-step.active {
-    color: var(--text-primary);
-    background: rgba(91,141,239,0.1);
-  }
-
-  .phase-step.completed {
-    color: var(--accent-green);
-  }
-
-  .phase-step .phase-num {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 600;
-    flex-shrink: 0;
-    transition: all 0.3s ease;
-  }
-
-  .phase-step.active .phase-num {
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--accent-blue), #7c5bf5);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(91,141,239,0.4);
-  }
-
-  .phase-step.completed .phase-num {
-    border-color: transparent;
-    background: var(--accent-green);
-    color: #fff;
-  }
-
-  .phase-connector {
-    width: 28px;
-    height: 2px;
-    background: var(--border);
-    flex-shrink: 0;
-    border-radius: 1px;
-  }
-
-  .phase-connector.completed {
-    background: var(--accent-green);
-  }
 
   .topbar-spacer { flex: 1; }
 
@@ -177,28 +108,213 @@
   /* ── Left Panel ── */
   .left-panel {
     grid-area: left;
+    position: relative;
     background: var(--bg-secondary);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 2px;
     border-right: 1px solid var(--border);
+    padding: 8px 0;
   }
 
   .agent-card {
     background: var(--bg-secondary);
-    padding: 18px 20px;
+    padding: 16px 18px;
+    margin: 0 10px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     flex: 1;
     min-height: 0;
     border-bottom: 1px solid var(--border);
-    transition: background 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--border);
+    transition: all 0.3s ease;
+  }
+
+  .agent-card.is-working::before {
+    background: var(--accent-blue);
+    box-shadow: 0 0 12px var(--accent-blue);
+  }
+
+  .agent-card.is-done::before {
+    background: var(--accent-green);
+  }
+
+  .agent-card.is-error::before {
+    background: var(--accent-red);
+  }
+
+  .agent-card.is-working {
+    background: rgba(91,141,239,0.04);
+    animation: agentPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes agentPulse {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: inset 0 0 20px rgba(91,141,239,0.06); }
+  }
+
+  .agent-card.is-working .agent-icon {
+    animation: iconGlow 1.5s ease-in-out infinite;
+  }
+
+  @keyframes iconGlow {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.08); filter: brightness(1.2); }
+  }
+
+  .agent-card.flash-done {
+    animation: flashDone 0.6s ease-out;
+  }
+
+  @keyframes flashDone {
+    0% { background: rgba(76,175,80,0.15); }
+    100% { background: var(--bg-secondary); }
+  }
+
+  .agent-card.flash-error {
+    animation: flashError 0.6s ease-out;
+  }
+
+  @keyframes flashError {
+    0% { background: rgba(239,83,80,0.15); }
+    100% { background: var(--bg-secondary); }
+  }
+
+  .agent-card {
+    cursor: pointer;
   }
 
   .agent-card:hover {
     background: var(--bg-tertiary);
+  }
+
+  .agent-card.selected {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--accent-blue);
+  }
+
+  .agent-card.selected.agent-claude { border-left-color: var(--claude-orange); }
+  .agent-card.selected.agent-codex { border-left-color: var(--codex-blue); }
+  .agent-card.selected.agent-gemini { border-left-color: var(--gemini-green); }
+
+  /* Agent Detail Panel */
+  .agent-detail-panel {
+    display: none;
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 100%;
+    width: 380px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    z-index: 30;
+    overflow-y: auto;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+    animation: slideIn 0.2s ease-out;
+  }
+
+  .agent-detail-panel.open { display: flex; flex-direction: column; }
+
+  @keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .adp-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 18px; border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+
+  .adp-close {
+    margin-left: auto; cursor: pointer; font-size: 18px;
+    color: var(--text-muted); background: none; border: none;
+    padding: 4px 8px; border-radius: 4px;
+  }
+  .adp-close:hover { background: var(--bg-primary); color: var(--text-primary); }
+
+  .adp-section {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+
+  .adp-section-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-muted); margin-bottom: 8px; font-weight: 600;
+  }
+
+  .adp-meta-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; padding: 4px 0; color: var(--text-secondary);
+  }
+
+  .adp-meta-value { font-family: var(--font-mono); font-size: 11px; color: var(--text-primary); }
+
+  .adp-task-item {
+    padding: 10px 12px; margin-bottom: 6px;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 12px;
+  }
+
+  .adp-task-name { font-weight: 600; margin-bottom: 4px; }
+
+  .adp-task-meta { font-size: 10px; color: var(--text-muted); display: flex; gap: 10px; }
+
+  .adp-output-box {
+    white-space: pre-wrap; word-break: break-word;
+    font-size: 11px; line-height: 1.6; font-family: var(--font-mono);
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto;
+    color: var(--text-secondary);
+  }
+
+  .agent-progress-bar {
+    height: 4px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .agent-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+    background: var(--accent-blue);
+  }
+
+  .agent-progress-fill.done { background: var(--accent-green); }
+  .agent-progress-fill.error { background: var(--accent-red); }
+
+  .agent-tokens {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+
+  .agent-tokens span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .agent-tokens .token-label {
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .agent-header {
@@ -257,58 +373,62 @@
   .agent-current-task {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(91,141,239,0.06);
-    border: 1px solid rgba(91,141,239,0.15);
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(91,141,239,0.08);
+    border: 1px solid rgba(91,141,239,0.2);
     border-radius: var(--radius-sm);
     animation: fadeIn 0.3s ease;
   }
 
   .current-task-label {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--accent-blue);
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
     flex-shrink: 0;
+    padding: 2px 8px;
+    background: rgba(91,141,239,0.12);
+    border-radius: 3px;
   }
 
   .current-task-value {
     font-size: 13px;
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .agent-meta {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 5px 14px;
+    display: flex;
+    gap: 16px;
     font-size: 12px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-subtle);
   }
 
   .meta-label {
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
   .meta-value {
     color: var(--text-primary);
     font-family: var(--font-mono);
-    text-align: right;
     font-size: 12px;
+    font-weight: 500;
   }
 
   .agent-output {
     flex: 1;
-    min-height: 70px;
-    max-height: 180px;
+    min-height: 80px;
     background: var(--bg-primary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -393,7 +513,7 @@
   /* ── Phase 2: Main Area Tabs ── */
   .main-tabs {
     display: flex;
-    gap: 0;
+    gap: 4px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
   }
@@ -420,7 +540,7 @@
     display: none;
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 20px;
   }
 
   .tab-content.active { display: flex; flex-direction: column; }
@@ -537,147 +657,102 @@
   }
 
   /* ── Toolbar ── */
+  /* ── Professional Kanban Board ── */
   .kb-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: 8px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;
   }
-
   .kb-search {
-    width: 200px;
+    width: 180px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 7px 10px 7px 30px;
+    border-radius: 6px;
+    padding: 6px 10px 6px 28px;
     color: var(--text-primary);
     font-size: 12px;
     outline: none;
     transition: border-color 0.2s;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%234a4e62' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%234a4e62' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: 8px center;
   }
-
   .kb-search:focus { border-color: var(--accent-blue); }
-
   .kb-filter-btn {
-    padding: 6px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
+    font-weight: 500;
   }
-
-  .kb-filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-  .kb-filter-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(91,141,239,0.08); }
-
+  .kb-filter-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+  .kb-filter-btn.active { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
   .kb-spacer { flex: 1; }
-
   .kb-progress {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-secondary);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text-muted);
   }
+  .kb-progress-bar { width: 80px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .kb-progress-fill { height: 100%; background: var(--accent-green); border-radius: 2px; transition: width 0.5s; }
+  .kb-progress-text { font-family: var(--font-mono); font-size: 11px; }
 
-  .kb-progress-bar {
-    width: 120px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .kb-progress-fill {
-    height: 100%;
-    background: var(--accent-green);
-    border-radius: 2px;
-    transition: width 0.5s ease;
-  }
-
-  .kb-progress-text {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    min-width: 60px;
-  }
-
-  /* ── Columns container ── */
+  /* ── Columns layout ── */
   .kb-columns {
     display: flex;
-    gap: 0;
     flex: 1;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0;
+    gap: 0;
   }
 
-  /* ── Single column ── */
   .kb-col {
     flex: 1;
-    min-width: 240px;
+    min-width: 220px;
+    max-width: 340px;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border);
-    overflow: hidden;
   }
-
   .kb-col:last-child { border-right: none; }
 
   .kb-col-head {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 14px;
-    background: var(--bg-secondary);
+    padding: 12px 12px 10px;
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-
-  .kb-col-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    background: var(--bg-secondary);
     flex-shrink: 0;
   }
-
-  .kb-col-dot.queued    { background: var(--text-muted); }
-  .kb-col-dot.running   { background: var(--accent-blue); box-shadow: 0 0 6px rgba(91,141,239,0.4); animation: pulse 2s infinite; }
-  .kb-col-dot.review    { background: var(--accent-orange); }
-  .kb-col-dot.done      { background: var(--accent-green); }
-  .kb-col-dot.failed    { background: var(--accent-red); }
-
-  .kb-col-name {
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--text-primary);
+  .kb-col-dot {
+    width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
   }
+  .kb-col-dot.todo     { background: var(--text-muted); }
+  .kb-col-dot.progress { background: var(--accent-blue); }
+  .kb-col-dot.done     { background: #4caf50; }
+  .kb-col-dot.failed   { background: var(--accent-red); }
 
+  .kb-col-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
   .kb-col-count {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
-    background: var(--bg-hover);
-    padding: 1px 7px;
-    border-radius: 10px;
-  }
-
-  .kb-col-wip {
-    font-size: 10px;
-    color: var(--text-muted);
     margin-left: auto;
   }
-
-  .kb-col-wip.over { color: var(--accent-red); font-weight: 600; }
 
   .kb-col-body {
     flex: 1;
@@ -686,180 +761,326 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    background: var(--bg-primary);
   }
-
-  .kb-col-body::-webkit-scrollbar { width: 4px; }
+  .kb-col-body::-webkit-scrollbar { width: 3px; }
   .kb-col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   .kb-col-body.drag-over {
-    background: rgba(91,141,239,0.04);
-    outline: 2px dashed rgba(91,141,239,0.2);
-    outline-offset: -2px;
-    border-radius: var(--radius-sm);
+    background: rgba(91,141,239,0.03);
   }
 
   .kb-col-empty {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px 12px;
+    padding: 32px 12px;
     color: var(--text-muted);
     font-size: 12px;
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-sm);
-    margin: 4px;
+    opacity: 0.5;
   }
 
-  /* ── Task card ── */
+  /* ── Card ── */
   .kb-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--text-muted);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    cursor: grab;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
     transition: all 0.15s ease;
     position: relative;
   }
-
   .kb-card:hover {
-    border-color: rgba(91,141,239,0.3);
-    border-left-color: inherit;
-    box-shadow: var(--shadow-sm);
-    transform: translateY(-1px);
+    border-color: rgba(91,141,239,0.35);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
+  .kb-card.dragging { opacity: 0.35; transform: rotate(2deg); }
 
-  .kb-card:active { cursor: grabbing; }
-  .kb-card.dragging { opacity: 0.4; }
-  .kb-card.blocked { opacity: 0.55; }
-
-  /* Priority left border */
-  .kb-card.p-critical { border-left-color: #ef4444; }
-  .kb-card.p-high     { border-left-color: #f97316; }
-  .kb-card.p-medium   { border-left-color: #eab308; }
-  .kb-card.p-low      { border-left-color: #6b7280; }
-
-  .kb-card-id {
+  .kb-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .kb-card-key {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--text-muted);
-    margin-bottom: 4px;
+    flex-shrink: 0;
+    padding-top: 2px;
   }
-
   .kb-card-title {
     font-weight: 600;
     font-size: 13px;
     color: var(--text-primary);
-    line-height: 1.4;
-    margin-bottom: 8px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.35;
+    flex: 1;
   }
 
   .kb-card-labels {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
-
   .kb-label {
     font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 4px;
+    padding: 1px 6px;
+    border-radius: 3px;
     font-weight: 500;
-    letter-spacing: 0.2px;
   }
-
-  .kb-label.type {
-    text-transform: uppercase;
-    background: rgba(91,141,239,0.1);
-    color: var(--accent-blue);
-  }
-
-  .kb-label.phase {
-    background: rgba(155,140,245,0.1);
-    color: var(--gemini-color);
-  }
+  .kb-label.phase-plan    { background: rgba(91,141,239,0.12); color: #5b8def; }
+  .kb-label.phase-execute { background: rgba(155,140,245,0.12); color: #9b8cf5; }
+  .kb-label.type-label    { background: rgba(255,255,255,0.05); color: var(--text-muted); text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; }
 
   .kb-card-footer {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   /* Agent avatar */
   .kb-avatar {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 9px; color: #fff; flex-shrink: 0;
+  }
+  .kb-avatar.claude { background: #d48c4a; }
+  .kb-avatar.codex  { background: #3da0d0; }
+  .kb-avatar.gemini { background: #7c6cdb; }
+
+  .kb-card-agent-name {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .kb-card-model {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    opacity: 0.7;
+    flex: 1;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+  }
+  .kb-card-time {
+    font-family: var(--font-mono);
     font-size: 10px;
-    color: #fff;
+    color: var(--text-muted);
+  }
+  .kb-card-result-btn {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(91,141,239,0.1);
+    color: var(--accent-blue);
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .kb-card-result-btn:hover { background: rgba(91,141,239,0.22); }
+
+  .kb-card-error-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-red);
     flex-shrink: 0;
   }
 
-  .kb-avatar.claude { background: linear-gradient(135deg, #e8a76c, #d48c4a); }
-  .kb-avatar.codex  { background: linear-gradient(135deg, #5bbce8, #3da0d0); }
-  .kb-avatar.gemini { background: linear-gradient(135deg, #9b8cf5, #7c6cdb); }
-
-  .kb-card-time {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
+  /* Working animation on card */
+  .kb-card.is-working {
+    border-color: rgba(91,141,239,0.3);
+  }
+  .kb-card.is-working::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+    border-radius: 8px 8px 0 0;
+    animation: shimmer 1.8s infinite;
+  }
+  @keyframes shimmer {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
   }
 
-  .kb-card-cost {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
+  /* Result modal */
+  .result-modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.15s;
+  }
+  .result-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; width: 90%; max-width: 800px; max-height: 80vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .result-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .result-modal-header h3 { margin: 0; font-size: 15px; }
+  .result-modal-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+  }
+  .result-modal-close:hover { color: var(--text-primary); }
+  .result-modal-body {
+    padding: 20px; overflow-y: auto; flex: 1;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word; color: var(--text-secondary);
   }
 
-  .kb-card-blocker {
-    margin-left: auto;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(239,83,80,0.1);
-    color: var(--accent-red);
-    border: 1px solid rgba(239,83,80,0.2);
+  /* ── Results Panel ── */
+  .results-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+  }
+  .results-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 13px;
+    gap: 8px;
+  }
+  .results-header {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
   }
-
-  .kb-card-actions {
-    display: none;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    gap: 4px;
+  .results-header-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
   }
-
-  .kb-card:hover .kb-card-actions { display: flex; }
-
-  .kb-card-action-btn {
-    width: 24px;
-    height: 24px;
+  .results-header-info {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .results-header-refresh {
+    margin-left: auto;
+    padding: 5px 12px;
     border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg-primary);
+    border-radius: 6px;
+    background: transparent;
     color: var(--text-secondary);
     font-size: 12px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.15s;
   }
+  .results-header-refresh:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-  .kb-card-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .results-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+  }
+  .result-item {
+    border-bottom: 1px solid var(--border);
+  }
+  .result-item-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background 0.1s;
+    user-select: none;
+  }
+  .result-item-head:hover { background: var(--bg-hover); }
+  .result-item-arrow {
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+    width: 14px;
+    text-align: center;
+  }
+  .result-item-arrow.open { transform: rotate(90deg); }
+  .result-item-status {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .result-item-status.done { background: #4caf50; }
+  .result-item-status.error { background: var(--accent-red); }
+  .result-item-status.working { background: var(--accent-blue); animation: pulse 2s infinite; }
+  .result-item-status.pending { background: var(--text-muted); }
+  .result-item-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .result-item-agent {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .result-item-agent-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .result-item-agent-dot.claude { background: #e8a76c; }
+  .result-item-agent-dot.codex { background: #5bbce8; }
+  .result-item-agent-dot.gemini { background: #9b8cf5; }
+  .result-item-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 40px;
+    text-align: right;
+  }
+  .result-item-body {
+    display: none;
+    padding: 0 20px 16px 44px;
+  }
+  .result-item-body.open { display: block; }
+  .result-item-output {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .result-item-output::-webkit-scrollbar { width: 3px; }
+  .result-item-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .result-item-error {
+    color: var(--accent-red);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .result-copy-btn {
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .result-copy-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
   /* ── Detail panel (slide-in) ── */
   .kb-detail {
@@ -1296,123 +1517,630 @@
     grid-area: main;
     background: var(--bg-primary);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     position: relative;
     overflow: hidden;
   }
 
-  .flow-diagram {
+  /* ── Flow fullscreen mode: hide left panel ── */
+  #app.flow-fullscreen {
+    grid-template-columns: 0 1fr !important;
+  }
+  #app.flow-fullscreen .left-panel {
+    display: none !important;
+  }
+
+  /* ── Flow v4: Models on top, tasks flow down ── */
+  .fv {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+  .fv-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+  .fv-bar-prompt {
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fv-bar-stat {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fv-pbar { width: 60px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .fv-pfill { height: 100%; background: var(--accent-green); transition: width 0.4s; }
+  .fv-cols {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow: hidden;
+  }
+  .fv-lane {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .fv-lane:last-child { border-right: none; }
+
+  /* Model header */
+  .fv-model {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+  .fv-model-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .fv-model-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fv-model-dot.working { animation: fvPulse 1.2s ease-in-out infinite; }
+  @keyframes fvPulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .fv-model-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .fv-model-stat {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .fv-model-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Task cards */
+  .fv-tasks {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Phase separator */
+  .fv-phase-sep {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 6px;
+  }
+  .fv-phase-line { flex: 1; height: 1px; background: var(--border); }
+  .fv-phase-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* Down arrow between tasks */
+  .fv-arrow-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+  }
+  .fv-arrow-down-line {
+    width: 1.5px;
+    height: 16px;
+    background: var(--border);
+  }
+  .fv-arrow-down-head {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--border);
+  }
+  .fv-arrow-down[data-done="true"] .fv-arrow-down-line { background: var(--accent-green); }
+  .fv-arrow-down[data-done="true"] .fv-arrow-down-head { border-top-color: var(--accent-green); }
+  .fv-arrow-down[data-active="true"] .fv-arrow-down-line { background: var(--accent-blue); }
+  .fv-arrow-down[data-active="true"] .fv-arrow-down-head { border-top-color: var(--accent-blue); }
+
+  /* Task card */
+  .fv-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .fv-card[data-status="working"] {
+    border-color: rgba(91,141,239,0.5);
+    box-shadow: 0 0 12px rgba(91,141,239,0.08);
+  }
+  .fv-card[data-status="done"] {
+    border-color: rgba(52,211,153,0.35);
+  }
+  .fv-card[data-status="error"] {
+    border-color: rgba(239,83,80,0.4);
+  }
+  .fv-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .fv-card-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fv-card-dot.pending { background: var(--status-pending); }
+  .fv-card-dot.working { background: var(--status-working); animation: fvPulse 1.2s ease-in-out infinite; }
+  .fv-card-dot.done { background: var(--status-done); }
+  .fv-card-dot.error { background: var(--accent-red); }
+  .fv-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .fv-card-status {
+    font-size: 10px;
+    font-weight: 500;
+    margin-left: auto;
+  }
+  .fv-card-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-family: var(--font-mono);
+  }
+  .fv-card-summary {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    max-height: 54px;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .fv-card-summary.err { color: var(--accent-red); opacity: 0.85; }
+  .fv-card-expand {
+    font-size: 11px;
+    color: var(--accent-blue);
+    cursor: pointer;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .fv-card-expand:hover { text-decoration: underline; }
+  .fv-card-full {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+  }
+  /* Clickable card */
+  .fv-card {
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.15s;
+  }
+  .fv-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  .fv-card.selected {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 2px rgba(91,141,239,0.25), 0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  /* Completion animation */
+  @keyframes fvCardComplete {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+    40% { box-shadow: 0 0 0 8px rgba(52,211,153,0.2); transform: scale(1.02); }
+    100% { box-shadow: none; transform: scale(1); }
+  }
+  .fv-card.just-completed {
+    animation: fvCardComplete 0.8s ease-out;
+  }
+  .fv-card.just-completed .fv-card-dot {
+    animation: fvDotPop 0.5s ease-out;
+  }
+  @keyframes fvDotPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(2); }
+    100% { transform: scale(1); }
+  }
+
+  /* Error animation */
+  @keyframes fvCardError {
+    0% { box-shadow: 0 0 0 0 rgba(239,83,80,0.5); }
+    40% { box-shadow: 0 0 0 8px rgba(239,83,80,0.2); }
+    100% { box-shadow: none; }
+  }
+  .fv-card.just-errored {
+    animation: fvCardError 0.8s ease-out;
+  }
+
+  /* Empty lane placeholder */
+  .fv-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+    opacity: 0.5;
+  }
+  /* Summary footer */
+  .fv-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  /* ── Flow v5 overrides: phase-based layout ── */
+  .fv-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px 32px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0;
   }
-
-  .flow-node {
-    width: 200px;
-    padding: 20px 24px;
+  .fv-phase-group { width: 100%; max-width: 900px; }
+  .fv-phase-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .fv-phase-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    text-align: center;
-    background: var(--bg-secondary);
-    position: relative;
-    transition: all 0.4s ease;
   }
-
-  .flow-node[data-status="working"] {
-    border-color: rgba(91,141,239,0.5);
-    box-shadow: 0 0 20px rgba(91,141,239,0.15), inset 0 0 20px rgba(91,141,239,0.03);
+  .fv-phase-badge.active { color: var(--accent-blue); border-color: var(--accent-blue); }
+  .fv-phase-badge.done { color: var(--accent-green); border-color: var(--accent-green); }
+  .fv-phase-badge.error { color: var(--accent-red); border-color: var(--accent-red); }
+  .fv-parallel {
+    display: flex;
+    gap: 12px;
+    width: 100%;
   }
-
-  .flow-node[data-status="done"] {
-    border-color: rgba(52,211,153,0.4);
-    box-shadow: 0 0 12px rgba(52,211,153,0.1);
-  }
-
-  .flow-node[data-status="error"] {
-    border-color: rgba(239,83,80,0.4);
-    box-shadow: 0 0 12px rgba(239,83,80,0.1);
-  }
-
-  .flow-node-icon {
-    font-size: 24px;
-    margin-bottom: 8px;
-  }
-
-  .flow-node-label {
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 4px;
-  }
-
-  .flow-node-sub {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .flow-arrow {
+  .fv-parallel > .fv-card { flex: 1; min-width: 0; }
+  .fv-connector {
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 48px;
-    justify-content: center;
-    color: var(--text-muted);
+    padding: 8px 0;
+    width: 100%;
+    max-width: 900px;
   }
-
-  .flow-arrow-line {
-    width: 1.5px;
-    height: 28px;
-    background: var(--border);
-  }
-
-  .flow-arrow-head {
-    width: 0;
-    height: 0;
+  .fv-connector-line { width: 2px; height: 24px; background: var(--border); }
+  .fv-connector-head {
+    width: 0; height: 0;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-top: 6px solid var(--border);
   }
-
-  .flow-arrow-label {
+  .fv-connector.done .fv-connector-line { background: var(--accent-green); }
+  .fv-connector.done .fv-connector-head { border-top-color: var(--accent-green); }
+  .fv-connector.active .fv-connector-line { background: var(--accent-blue); }
+  .fv-connector.active .fv-connector-head { border-top-color: var(--accent-blue); }
+  .fv-card-agent {
     font-size: 10px;
-    color: var(--text-muted);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    border: 1px solid;
+  }
+  .fv-card-agent.agent-claude {
+    background: rgba(232, 121, 47, 0.1);
+    color: #e8792f;
+    border-color: rgba(232, 121, 47, 0.25);
+  }
+  .fv-card-agent.agent-codex {
+    background: rgba(91, 141, 239, 0.1);
+    color: #5b8def;
+    border-color: rgba(91, 141, 239, 0.25);
+  }
+  .fv-card-agent.agent-gemini {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+    border-color: rgba(76, 175, 80, 0.25);
+  }
+
+  /* ── Notification / Briefing Panel ── */
+  .notif-bell {
+    position: relative;
+    cursor: pointer;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    font-size: 16px;
+    transition: background 0.15s;
+  }
+  .notif-bell:hover { background: var(--bg-hover); }
+  .notif-badge {
     position: absolute;
-    left: calc(100% + 8px);
-    white-space: nowrap;
+    top: -3px; right: -3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    display: none;
+    align-items: center;
+    justify-content: center;
   }
+  .notif-badge.show { display: flex; }
 
-  .flow-side-group {
+  .briefing-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
     display: flex;
-    gap: 40px;
+    align-items: center;
+    justify-content: center;
+    animation: briefFadeIn 0.2s ease;
+  }
+  @keyframes briefFadeIn { from{opacity:0;} to{opacity:1;} }
+
+  .briefing-panel {
+    width: 560px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    animation: briefSlide 0.25s ease;
+  }
+  @keyframes briefSlide { from{transform:translateY(20px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+
+  .briefing-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .briefing-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .briefing-close {
+    margin-left: auto;
+    background: none; border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .briefing-close:hover { color: var(--text-primary); }
+
+  .briefing-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 22px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+  }
+  .briefing-body p { margin-bottom: 12px; }
+  .briefing-body .brief-section {
+    margin-bottom: 16px;
+  }
+  .briefing-body .brief-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .briefing-body .brief-task-item {
+    display: flex;
     align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .briefing-body .brief-task-item:last-child { border-bottom: none; }
+  .briefing-body .brief-task-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+  .briefing-body .brief-task-text {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .briefing-body .brief-task-text strong {
+    color: var(--text-primary);
+    font-weight: 600;
   }
 
-  .flow-branch {
+  .briefing-actions {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0;
+    gap: 8px;
+  }
+  .briefing-actions .brief-q {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  .briefing-actions .brief-btns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .briefing-actions .brief-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .briefing-actions .brief-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-blue);
+  }
+  .briefing-actions .brief-btn.primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+  }
+  .briefing-actions .brief-btn.primary:hover {
+    filter: brightness(1.1);
   }
 
-  .flow-h-connector {
+  /* ── Approval Widget ── */
+  .approval-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    z-index: 500;
     display: flex;
     align-items: center;
-    gap: 0;
-    margin: 0;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
   }
-
-  .flow-h-line {
-    width: 40px;
-    height: 1.5px;
-    background: var(--border);
-  }
-
-  .flow-merge-container {
+  .approval-panel {
+    width: 640px;
+    max-width: 92vw;
+    max-height: 85vh;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: slideUp 0.3s ease;
   }
+  .approval-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .approval-header-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(245,215,110,0.15);
+    border: 1px solid rgba(245,215,110,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .approval-header-text h3 {
+    font-size: 16px; font-weight: 700; margin: 0;
+  }
+  .approval-header-text p {
+    font-size: 12px; color: var(--text-muted); margin: 2px 0 0;
+  }
+  .approval-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+  .approval-task-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .approval-task-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .approval-task-agent {
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px; font-family: var(--font-mono);
+  }
+  .approval-task-output {
+    font-size: 12px; line-height: 1.6; color: var(--text-secondary);
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 200px; overflow-y: auto;
+  }
+  .approval-actions {
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .approval-actions .btn-approve-lg {
+    padding: 10px 28px; font-size: 14px; font-weight: 700;
+    background: var(--accent-green); color: #fff; border: none;
+    border-radius: 8px; cursor: pointer;
+    box-shadow: 0 2px 12px rgba(52,211,153,0.3);
+    transition: all 0.2s;
+  }
+  .approval-actions .btn-approve-lg:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .approval-actions .btn-reject-lg {
+    padding: 10px 28px; font-size: 14px; font-weight: 600;
+    background: transparent; color: var(--accent-red);
+    border: 1px solid rgba(239,83,80,0.4);
+    border-radius: 8px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .approval-actions .btn-reject-lg:hover { background: rgba(239,83,80,0.1); }
 
   .main-watermark {
     position: absolute;
@@ -1428,12 +2156,13 @@
   /* ── Bottom Bar ── */
   .bottom-bar {
     grid-area: bottom;
-    background: var(--bg-secondary);
+    background: linear-gradient(to right, var(--bg-secondary), var(--bg-tertiary));
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    gap: 20px;
+    padding: 0 24px;
+    gap: 24px;
     border-top: 1px solid var(--border);
+    min-height: 56px;
   }
 
   .cost-section {
@@ -1449,10 +2178,11 @@
 
   .cost-value {
     font-family: var(--font-mono);
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     color: var(--accent-yellow);
     letter-spacing: -0.3px;
+    text-shadow: 0 0 8px rgba(245,215,110,0.3);
   }
 
   .cost-breakdown {
@@ -1564,6 +2294,12 @@
   .left-panel::-webkit-scrollbar { width: 6px; }
   .left-panel::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
 
+  /* ── Panel Resizer ── */
+  #panelResizer:hover, #panelResizer:active {
+    background: linear-gradient(to right, transparent, var(--accent-blue), transparent);
+    opacity: 0.5;
+  }
+
   /* ── Responsive ── */
   @media (max-width: 1200px) {
     #app {
@@ -1574,7 +2310,7 @@
   @media (max-width: 900px) {
     #app {
       grid-template-columns: 1fr;
-      grid-template-rows: 56px 300px 1fr 52px;
+      grid-template-rows: 56px 300px 1fr 56px;
       grid-template-areas:
         "topbar"
         "left"
@@ -1601,179 +2337,130 @@
   <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-title">LLMTrio</div>
-    <div class="phase-bar">
-      <div class="phase-step active" data-phase="discover">
-        <span class="phase-num">1</span>
-        <span>Discover</span>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase-step" data-phase="define">
-        <span class="phase-num">2</span>
-        <span>Define</span>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase-step" data-phase="develop">
-        <span class="phase-num">3</span>
-        <span>Develop</span>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase-step" data-phase="deliver">
-        <span class="phase-num">4</span>
-        <span>Deliver</span>
-      </div>
-    </div>
+    <span id="workflowPhaseBadge" style="display:none;padding:4px 12px;font-size:11px;font-weight:600;border-radius:12px;background:rgba(91,141,239,0.15);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.3);letter-spacing:0.5px;text-transform:uppercase;"></span>
     <div class="topbar-spacer"></div>
     <button class="btn btn-send" onclick="startDebate()" style="font-size:11px;" data-i18n="startDebate">Start Debate</button>
+    <select id="langSelect" onchange="setLanguage(this.value)" style="background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
+      <option value="en">EN</option>
+      <option value="ko">한국어</option>
+      <option value="zh">中文</option>
+      <option value="ja">日本語</option>
+    </select>
+    <div class="notif-bell" id="notifBell" onclick="openBriefing()" title="Briefing">
+      🔔
+      <div class="notif-badge" id="notifBadge">1</div>
+    </div>
     <div class="sse-indicator" id="sseIndicator" title="SSE"></div>
     <div class="topbar-status" id="topbarClock"></div>
   </div>
 
+
   <!-- Left Panel -->
   <div class="left-panel">
-    <div class="agent-card" id="card-claude">
+    <!-- Status Summary -->
+    <div id="statusSummary" style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-tertiary);">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Workflow</div>
+      <div id="statusSummaryText" style="font-size:13px;color:var(--text-secondary);">대기 중</div>
+    </div>
+
+    <div class="agent-card agent-claude" id="card-claude" onclick="toggleAgentDetail('claude')">
       <div class="agent-header">
         <div class="agent-icon claude">C</div>
         <div class="agent-name">Claude</div>
         <div class="status-badge pending" id="status-claude" data-i18n="pending">Pending</div>
       </div>
+      <div class="agent-progress-bar"><div class="agent-progress-fill" id="progress-claude" style="width:0%"></div></div>
       <div class="agent-current-task" id="current-task-claude" style="display:none;">
         <span class="current-task-label" data-i18n="task">Task</span>
         <span class="current-task-value" id="task-claude">—</span>
       </div>
       <div class="agent-meta">
+        <span class="meta-label">Model</span>
+        <span class="meta-value" id="model-claude" style="font-family:var(--font-mono);font-size:10px;opacity:0.7;">—</span>
+      </div>
+      <div class="agent-meta">
         <span class="meta-label" data-i18n="elapsed">Elapsed</span>
         <span class="meta-value" id="elapsed-claude">0.0s</span>
-        <span class="meta-label" data-i18n="cost">Cost</span>
-        <span class="meta-value" id="cost-claude">$0.000</span>
-        <span class="meta-label" data-i18n="output">Output</span>
-        <span class="meta-value" id="file-claude">—</span>
       </div>
       <div class="agent-output" id="output-claude" data-i18n="waiting">Waiting for response...</div>
       <div class="agent-controls">
         <input type="text" class="agent-prompt-input" id="prompt-claude" data-i18n-placeholder="sendTo" data-agent="Claude" placeholder="Send to Claude..." />
         <button class="btn btn-send" onclick="sendPrompt('claude')" data-i18n="send">Send</button>
-        <button class="btn btn-pause" onclick="sendCmd('pause','claude')">⏸</button>
         <button class="btn btn-cancel" onclick="sendCmd('cancel','claude')">✕</button>
       </div>
     </div>
 
-    <div class="agent-card" id="card-codex">
+    <div class="agent-card agent-codex" id="card-codex" onclick="toggleAgentDetail('codex')">
       <div class="agent-header">
         <div class="agent-icon codex">X</div>
         <div class="agent-name">Codex</div>
         <div class="status-badge pending" id="status-codex" data-i18n="pending">Pending</div>
       </div>
+      <div class="agent-progress-bar"><div class="agent-progress-fill" id="progress-codex" style="width:0%"></div></div>
       <div class="agent-current-task" id="current-task-codex" style="display:none;">
         <span class="current-task-label" data-i18n="task">Task</span>
         <span class="current-task-value" id="task-codex">—</span>
       </div>
       <div class="agent-meta">
+        <span class="meta-label">Model</span>
+        <span class="meta-value" id="model-codex" style="font-family:var(--font-mono);font-size:10px;opacity:0.7;">—</span>
+      </div>
+      <div class="agent-meta">
         <span class="meta-label" data-i18n="elapsed">Elapsed</span>
         <span class="meta-value" id="elapsed-codex">0.0s</span>
-        <span class="meta-label" data-i18n="cost">Cost</span>
-        <span class="meta-value" id="cost-codex">$0.000</span>
-        <span class="meta-label" data-i18n="output">Output</span>
-        <span class="meta-value" id="file-codex">—</span>
       </div>
       <div class="agent-output" id="output-codex" data-i18n="waiting">Waiting for response...</div>
       <div class="agent-controls">
         <input type="text" class="agent-prompt-input" id="prompt-codex" data-i18n-placeholder="sendTo" data-agent="Codex" placeholder="Send to Codex..." />
         <button class="btn btn-send" onclick="sendPrompt('codex')" data-i18n="send">Send</button>
-        <button class="btn btn-pause" onclick="sendCmd('pause','codex')">⏸</button>
         <button class="btn btn-cancel" onclick="sendCmd('cancel','codex')">✕</button>
       </div>
     </div>
 
-    <div class="agent-card" id="card-gemini">
+    <div class="agent-card agent-gemini" id="card-gemini" onclick="toggleAgentDetail('gemini')">
       <div class="agent-header">
         <div class="agent-icon gemini">G</div>
         <div class="agent-name">Gemini</div>
         <div class="status-badge pending" id="status-gemini" data-i18n="pending">Pending</div>
       </div>
+      <div class="agent-progress-bar"><div class="agent-progress-fill" id="progress-gemini" style="width:0%"></div></div>
       <div class="agent-current-task" id="current-task-gemini" style="display:none;">
         <span class="current-task-label" data-i18n="task">Task</span>
         <span class="current-task-value" id="task-gemini">—</span>
       </div>
       <div class="agent-meta">
+        <span class="meta-label">Model</span>
+        <span class="meta-value" id="model-gemini" style="font-family:var(--font-mono);font-size:10px;opacity:0.7;">—</span>
+      </div>
+      <div class="agent-meta">
         <span class="meta-label" data-i18n="elapsed">Elapsed</span>
         <span class="meta-value" id="elapsed-gemini">0.0s</span>
-        <span class="meta-label" data-i18n="cost">Cost</span>
-        <span class="meta-value" id="cost-gemini">$0.000</span>
-        <span class="meta-label" data-i18n="output">Output</span>
-        <span class="meta-value" id="file-gemini">—</span>
       </div>
       <div class="agent-output" id="output-gemini" data-i18n="waiting">Waiting for response...</div>
       <div class="agent-controls">
         <input type="text" class="agent-prompt-input" id="prompt-gemini" data-i18n-placeholder="sendTo" data-agent="Gemini" placeholder="Send to Gemini..." />
         <button class="btn btn-send" onclick="sendPrompt('gemini')" data-i18n="send">Send</button>
-        <button class="btn btn-pause" onclick="sendCmd('pause','gemini')">⏸</button>
         <button class="btn btn-cancel" onclick="sendCmd('cancel','gemini')">✕</button>
       </div>
     </div>
+
+    <!-- Agent Detail Panel (slides out from left panel) -->
+    <div class="agent-detail-panel" id="agentDetailPanel"></div>
   </div>
+
+  <!-- Panel Resizer -->
+  <div id="panelResizer" style="grid-area:left;position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20;"></div>
 
   <!-- Main Area -->
   <div class="main-area" style="display:flex;flex-direction:column;">
     <div class="main-tabs">
-      <div class="main-tab active" data-tab="flow" onclick="switchTab('flow')" data-i18n="flow">Flow</div>
+      <div class="main-tab active" data-tab="results" onclick="switchTab('results')">Results</div>
+      <div class="main-tab" data-tab="flow" onclick="switchTab('flow')" data-i18n="flow">Flow</div>
       <div class="main-tab" data-tab="debate" onclick="switchTab('debate')" data-i18n="debate">Debate</div>
-      <div class="main-tab" data-tab="tasks" onclick="switchTab('tasks')" data-i18n="taskBoard">Task Board</div>
-      <div class="main-tab" data-tab="models" onclick="switchTab('models')" data-i18n="models">Models</div>
+      <div class="main-tab" data-tab="setup" onclick="switchTab('setup')" style="margin-left:auto;font-weight:700;padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;">⚙ Setup</div>
     </div>
-    <div class="tab-content active" id="tab-flow" style="align-items:center;justify-content:center;">
-    <div class="flow-diagram">
-      <!-- User input node -->
-      <div class="flow-node" id="flow-input" data-status="pending">
-        <div class="flow-node-icon">📝</div>
-        <div class="flow-node-label" data-i18n="input">Input</div>
-        <div class="flow-node-sub" data-i18n="userPrompt">User Prompt</div>
-      </div>
-
-      <div class="flow-arrow">
-        <div class="flow-arrow-line"></div>
-        <div class="flow-arrow-head"></div>
-      </div>
-
-      <!-- 3 agents side by side -->
-      <div class="flow-side-group">
-        <div class="flow-branch">
-          <div class="flow-node" id="flow-claude" data-status="pending">
-            <div class="flow-node-icon" style="color: var(--claude-color);">●</div>
-            <div class="flow-node-label">Claude</div>
-            <div class="flow-node-sub" id="flow-claude-sub" data-i18n="pending">Pending</div>
-          </div>
-        </div>
-
-        <div class="flow-branch">
-          <div class="flow-node" id="flow-codex" data-status="pending">
-            <div class="flow-node-icon" style="color: var(--codex-color);">●</div>
-            <div class="flow-node-label">Codex</div>
-            <div class="flow-node-sub" id="flow-codex-sub" data-i18n="pending">Pending</div>
-          </div>
-        </div>
-
-        <div class="flow-branch">
-          <div class="flow-node" id="flow-gemini" data-status="pending">
-            <div class="flow-node-icon" style="color: var(--gemini-color);">●</div>
-            <div class="flow-node-label">Gemini</div>
-            <div class="flow-node-sub" id="flow-gemini-sub" data-i18n="pending">Pending</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flow-arrow">
-        <div class="flow-arrow-line"></div>
-        <div class="flow-arrow-head"></div>
-      </div>
-
-      <!-- Merge node -->
-      <div class="flow-node" id="flow-merge" data-status="pending">
-        <div class="flow-node-icon">🔀</div>
-        <div class="flow-node-label" data-i18n="merge">Merge</div>
-        <div class="flow-node-sub" data-i18n="resultIntegration">Result Integration</div>
-      </div>
-    </div>
-
+    <div class="tab-content" id="tab-flow" style="overflow:hidden;">
+      <div class="flow-v3" id="flowV3Container"></div>
     </div>
     <div class="tab-content" id="tab-debate" style="position:relative;">
       <div class="consensus-meter">
@@ -1793,78 +2480,102 @@
         <button class="btn btn-send" onclick="sendDebateInput()" data-i18n="send">Send</button>
       </div>
     </div>
-    <div class="tab-content" id="tab-tasks" style="padding:0;overflow:hidden;">
-      <div class="kb" id="taskBoard"></div>
-      <!-- Detail Panel -->
-      <div class="kb-detail" id="kbDetail">
-        <div class="kb-detail-head">
-          <h3 id="kbDetailTitle">Task</h3>
-          <button class="kb-detail-close" onclick="closeDetail()">✕</button>
-        </div>
-        <div class="kb-detail-body" id="kbDetailBody"></div>
-        <div class="kb-detail-actions" id="kbDetailActions"></div>
+    <!-- Flow Detail Panel (slide-in from right) -->
+    <div class="kb-detail" id="flowDetail">
+      <div class="kb-detail-head">
+        <h3 id="flowDetailTitle">Task</h3>
+        <button class="kb-detail-close" onclick="closeFlowDetail()">✕</button>
       </div>
+      <div class="kb-detail-body" id="flowDetailBody"></div>
     </div>
-    <div class="tab-content" id="tab-models">
-      <div class="new-model-banner" id="newModelBanner" style="display:none;">
-        <span>🆕</span>
-        <span id="newModelText" data-i18n="newModelDetected">New model detected</span>
-        <span class="dismiss" onclick="this.parentElement.style.display='none'">✕</span>
-      </div>
-
-      <div class="model-grid" id="modelGrid">
-        <div style="color:var(--text-muted);padding:20px;font-size:12px;">
-<span data-i18n="loadingModels">Loading models...</span>
-        </div>
-      </div>
-
-      <div class="routing-section">
-        <h3 data-i18n="routing">Task Routing</h3>
-        <div id="routingRules"></div>
-      </div>
-
-      <div class="budget-controls">
-        <h3 data-i18n="budgetControls">Budget Limits</h3>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label" data-i18n="sessionLimit">Session Limit</span>
-          <input type="range" class="budget-slider" id="sliderSession" min="1" max="50" step="0.5" value="5" oninput="updateBudgetSlider('session',this.value)">
-          <span class="budget-slider-value" id="valSession">$5.0</span>
-        </div>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label" data-i18n="dailyLimit">Daily Limit</span>
-          <input type="range" class="budget-slider" id="sliderDaily" min="5" max="100" step="1" value="20" oninput="updateBudgetSlider('daily',this.value)">
-          <span class="budget-slider-value" id="valDaily">$20</span>
-        </div>
-        <div class="budget-slider-row">
-          <span class="budget-slider-label" data-i18n="opusLimit">Opus Call Limit</span>
-          <input type="range" class="budget-slider" id="sliderOpus" min="10" max="200" step="5" value="50" oninput="updateBudgetSlider('opus',this.value)">
-          <span class="budget-slider-value" id="valOpus">50</span>
-        </div>
-        <div style="margin-top:10px;">
-          <button class="btn btn-send" onclick="saveBudget()" data-i18n="save">Save</button>
-        </div>
-      </div>
+    <div class="tab-content active" id="tab-results" style="padding:0;overflow:hidden;">
+      <div class="results-panel" id="resultsPanel"></div>
     </div>
+    <div class="tab-content" id="tab-setup" style="padding:24px;overflow-y:auto;">
+      <!-- Model Update -->
+      <div style="margin-bottom:24px;padding:20px;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <h3 style="font-size:16px;font-weight:700;">Model Updates</h3>
+          <span id="modelLastChecked" style="font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <p style="color:var(--text-muted);font-size:12px;margin-bottom:14px;">Gemini를 사용해서 최신 모델 정보를 확인하고 업데이트합니다.</p>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button id="checkModelsBtn" onclick="checkLatestModels()" class="btn btn-send" style="padding:8px 20px;">최신 모델 확인</button>
+          <span id="checkModelsStatus" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
+        <div id="modelUpdateResult" style="display:none;margin-top:14px;padding:12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.6;color:var(--text-secondary);max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
+      </div>
 
-    <div class="main-watermark">LLMTrio v1.0</div>
-  </div>
+      <!-- Workflow Settings -->
+      <div style="margin-bottom:24px;padding:20px;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Workflow Settings</h3>
+        <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px;">워크플로우 실행 시 어떤 단계를 포함할지 설정합니다.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfPlanResearch" style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Research (Gemini)</div>
+              <div style="font-size:11px;color:var(--text-muted);">요구사항 분석 및 기술적 제약사항 조사</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfPlanArchitecture" checked style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Architecture (Claude)</div>
+              <div style="font-size:11px;color:var(--text-muted);">시스템 구조 및 컴포넌트 설계</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfPlanScaffold" checked style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Scaffold (Codex)</div>
+              <div style="font-size:11px;color:var(--text-muted);">프로젝트 구조 및 보일러플레이트 생성</div>
+            </div>
+          </label>
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">EXECUTE PHASE</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfExecImpl" checked style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Implementation (Codex)</div>
+              <div style="font-size:11px;color:var(--text-muted);">핵심 코드 작성</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfExecReview" checked style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Code Review (Claude)</div>
+              <div style="font-size:11px;color:var(--text-muted);">버그 및 보안 이슈 검토</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="wfExecDocs" checked style="width:16px;height:16px;accent-color:var(--accent-blue);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Documentation (Gemini)</div>
+              <div style="font-size:11px;color:var(--text-muted);">README 및 문서 작성</div>
+            </div>
+          </label>
+          <div style="margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:12px;color:var(--text-secondary);">Timeout (초)</span>
+              <input type="number" id="wfTimeout" value="45" min="10" max="300" style="width:70px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px;" />
+            </label>
+          </div>
+          <button onclick="saveWorkflowSettings()" class="btn btn-send" style="align-self:flex-start;padding:8px 20px;margin-top:4px;">Save</button>
+        </div>
+      </div>
 
-  <!-- Setup Overlay -->
-  <div class="first-run-overlay" id="setupOverlay" style="display:none;">
-    <div class="first-run-modal" style="max-width:720px;">
-      <!-- Header -->
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:36px;font-weight:800;letter-spacing:-1.5px;margin-bottom:6px;background:linear-gradient(135deg,var(--accent-blue),var(--gemini-color),var(--claude-color));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">LLMTrio</div>
-        <p style="color:var(--text-secondary);font-size:15px;line-height:1.6;margin-bottom:4px;">
-          Multi-LLM Orchestration Dashboard
-        </p>
-        <p style="color:var(--text-muted);font-size:13px;">
-          Connect at least one AI provider below to get started.
-        </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:start;">
+      <!-- Col 1: Agent Setup -->
+      <div>
+      <div style="margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Agent Setup</h3>
+        <p style="color:var(--text-muted);font-size:12px;">Install CLI tools and connect providers.</p>
       </div>
 
       <!-- Claude -->
-      <div class="setup-provider-card" id="setupCardClaude" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;">
+      <div class="setup-provider-card" id="setupCardClaude" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;border-radius:12px;border:1px solid var(--border-color);">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
           <div class="agent-icon claude" style="width:44px;height:44px;font-size:18px;">C</div>
           <div style="flex:1;">
@@ -1874,14 +2585,11 @@
           <span class="status-badge pending" id="setupClaudeBadge" style="font-size:12px;">...</span>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <!-- Install -->
           <button class="btn btn-send" onclick="installCli('claude')" id="setupClaudeInstallBtn" style="padding:8px 16px;font-size:13px;">Install CLI</button>
-          <!-- API Key -->
           <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px;">
             <input type="password" class="agent-prompt-input" id="setupClaudeKey" placeholder="API Key (sk-ant-...)" style="flex:1;padding:8px 12px;font-size:12px;" />
             <button class="btn btn-send" onclick="saveKey('anthropic','setupClaudeKey')" style="padding:8px 14px;font-size:12px;">Save</button>
           </div>
-          <!-- Login -->
           <button class="btn" onclick="cliLogin('claude')" id="setupClaudeLoginBtn" style="padding:8px 14px;font-size:12px;">Browser Login</button>
         </div>
         <div style="margin-top:8px;min-height:18px;">
@@ -1891,7 +2599,7 @@
       </div>
 
       <!-- Codex -->
-      <div class="setup-provider-card" id="setupCardCodex" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;">
+      <div class="setup-provider-card" id="setupCardCodex" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;border-radius:12px;border:1px solid var(--border-color);">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
           <div class="agent-icon codex" style="width:44px;height:44px;font-size:18px;">X</div>
           <div style="flex:1;">
@@ -1906,18 +2614,20 @@
             <input type="password" class="agent-prompt-input" id="setupCodexKey" placeholder="API Key (sk-...)" style="flex:1;padding:8px 12px;font-size:12px;" />
             <button class="btn btn-send" onclick="saveKey('openai','setupCodexKey')" style="padding:8px 14px;font-size:12px;">Save</button>
           </div>
+          <button class="btn" onclick="cliLogin('codex')" id="setupCodexLoginBtn" style="padding:8px 14px;font-size:12px;">Browser Login</button>
         </div>
         <div style="margin-top:8px;min-height:18px;">
           <span style="font-size:12px;color:var(--text-muted);" id="setupCodexInstallMsg"></span>
+          <span style="font-size:12px;color:var(--text-muted);" id="setupCodexLoginMsg"></span>
         </div>
       </div>
 
       <!-- Gemini -->
-      <div class="setup-provider-card" id="setupCardGemini" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;">
+      <div class="setup-provider-card" id="setupCardGemini" style="background:var(--bg-primary);padding:20px;margin-bottom:14px;border-radius:12px;border:1px solid var(--border-color);">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
           <div class="agent-icon gemini" style="width:44px;height:44px;font-size:18px;">G</div>
           <div style="flex:1;">
-            <div style="font-weight:700;font-size:16px;">Gemini <span style="font-size:11px;font-weight:400;color:var(--accent-orange);vertical-align:middle;">optional</span></div>
+            <div style="font-weight:700;font-size:16px;">Gemini</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="setupGeminiStatus">Checking...</div>
           </div>
           <span class="status-badge pending" id="setupGeminiBadge" style="font-size:12px;">...</span>
@@ -1925,23 +2635,73 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-send" onclick="installCli('gemini')" id="setupGeminiInstallBtn" style="padding:8px 16px;font-size:13px;">Install CLI</button>
           <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px;">
-            <input type="password" class="agent-prompt-input" id="setupGeminiKey" placeholder="API Key (AIza...)" style="flex:1;padding:8px 12px;font-size:12px;" />
+            <input type="password" class="agent-prompt-input" id="setupGeminiKey" placeholder="GEMINI_API_KEY" style="flex:1;padding:8px 12px;font-size:12px;" />
             <button class="btn btn-send" onclick="saveKey('google','setupGeminiKey')" style="padding:8px 14px;font-size:12px;">Save</button>
           </div>
-          <button class="btn" onclick="cliLogin('gemini')" id="setupGeminiLoginBtn" style="padding:8px 14px;font-size:12px;">Browser Login</button>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text-muted);">
+          Get your API key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent-blue);text-decoration:none;">aistudio.google.com/apikey</a>
         </div>
         <div style="margin-top:8px;min-height:18px;">
           <span style="font-size:12px;color:var(--text-muted);" id="setupGeminiInstallMsg"></span>
-          <span style="font-size:12px;color:var(--text-muted);" id="setupGeminiLoginMsg"></span>
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="first-run-actions" style="margin-top:28px;">
-        <div id="setupMessage" style="flex:1;font-size:14px;color:var(--text-muted);"></div>
-        <button class="btn-primary" id="setupDoneBtn" onclick="closeSetup()" disabled style="padding:12px 36px;font-size:15px;">Get Started</button>
       </div>
+      <!-- Col 2: Models -->
+      <div>
+      <div style="margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Models</h3>
+        <p style="color:var(--text-muted);font-size:12px;">Available models.</p>
+      </div>
+
+        <div class="new-model-banner" id="newModelBanner" style="display:none;">
+          <span>🆕</span>
+          <span id="newModelText" data-i18n="newModelDetected">New model detected</span>
+          <span class="dismiss" onclick="this.parentElement.style.display='none'">✕</span>
+        </div>
+
+        <div class="model-grid" id="modelGrid">
+          <div style="color:var(--text-muted);padding:20px;font-size:12px;">
+            <span data-i18n="loadingModels">Loading models...</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="modelLastUpdated"></div>
+      </div><!-- /col 2 -->
+
+      <!-- Col 3: Routing & Budget -->
+      <div>
+      <div class="routing-section">
+        <h3 data-i18n="routing">Task Routing</h3>
+        <div id="routingRules"></div>
+      </div>
+
+      <div class="budget-controls" style="margin-top:28px;">
+        <h3>Usage Limits</h3>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">Max Turns / Session</span>
+          <input type="range" class="budget-slider" id="sliderSession" min="5" max="100" step="5" value="30" oninput="updateBudgetSlider('session',this.value)">
+          <span class="budget-slider-value" id="valSession">30</span>
+        </div>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">Max Turns / Day</span>
+          <input type="range" class="budget-slider" id="sliderDaily" min="10" max="500" step="10" value="100" oninput="updateBudgetSlider('daily',this.value)">
+          <span class="budget-slider-value" id="valDaily">100</span>
+        </div>
+        <div class="budget-slider-row">
+          <span class="budget-slider-label">Timeout (min)</span>
+          <input type="range" class="budget-slider" id="sliderTimeout" min="5" max="60" step="5" value="30" oninput="updateBudgetSlider('timeout',this.value)">
+          <span class="budget-slider-value" id="valTimeout">30m</span>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-send" onclick="saveBudget()" data-i18n="save">Save</button>
+        </div>
+      </div>
+      </div><!-- /col 3 -->
+      </div><!-- /grid -->
     </div>
+
+    <div class="main-watermark">LLMTrio v1.0</div>
   </div>
 
   <!-- First Run Overlay -->
@@ -1960,43 +2720,60 @@
     </div>
   </div>
 
+  <!-- Floating expanded prompt (overlays above bottom bar) -->
+  <div id="promptExpanded" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);width:70%;max-width:900px;z-index:90;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;padding:20px 24px;box-shadow:0 -8px 40px rgba(0,0,0,0.5);backdrop-filter:blur(12px);">
+    <!-- Mode selector -->
+    <div id="modeSelector" style="display:flex;gap:4px;margin-bottom:12px;background:var(--bg-primary);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content;">
+      <button id="modeApproval" onclick="setWorkflowMode('approval')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--accent-blue);color:#fff;font-weight:600;">승인 모드</button>
+      <button id="modeAuto" onclick="setWorkflowMode('auto')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:transparent;color:var(--text-muted);">자동 모드</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-end;">
+      <textarea id="mainPromptInput" placeholder="Describe what you want to build..."
+        rows="5"
+        style="flex:1;padding:16px 18px;font-size:15px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:12px;font-family:var(--font-sans);outline:none;resize:vertical;min-height:120px;line-height:1.6;"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();startWorkflow();}"></textarea>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-send" onclick="startWorkflow()" id="startWorkflowBtn" style="padding:12px 28px;font-size:15px;font-weight:700;border-radius:10px;height:44px;">▶ Start</button>
+        <button onclick="collapsePrompt()" style="width:100%;padding:6px 12px;font-size:12px;font-weight:600;background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;" onmouseover="this.style.background='var(--bg-hover)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='var(--bg-tertiary)';this.style.color='var(--text-secondary)'" title="Minimize">▼ Min</button>
+      </div>
+    </div>
+    <span id="workflowStatus" style="font-size:11px;color:var(--text-muted);margin-top:8px;display:block;"></span>
+  </div>
+
   <!-- Bottom Bar -->
-  <div class="bottom-bar">
-    <div class="cost-section">
-      <span class="cost-label" data-i18n="totalCost">Total Cost</span>
-      <span class="cost-value" id="totalCost">$0.000</span>
-    </div>
+  <div class="bottom-bar" style="gap:16px;">
 
-    <div class="cost-breakdown">
-      <div class="cost-model">
+    <!-- Agent status dots -->
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:5px;">
         <span class="cost-dot claude"></span>
-        <span class="cost-label">Claude</span>
-        <span class="cost-model-value" id="costClaude">$0.000</span>
+        <span style="font-size:11px;color:var(--text-secondary);">Claude</span>
+        <span id="statusDotClaude" style="font-size:10px;color:var(--text-muted);">idle</span>
       </div>
-      <div class="cost-model">
+      <div style="display:flex;align-items:center;gap:5px;">
         <span class="cost-dot codex"></span>
-        <span class="cost-label">Codex</span>
-        <span class="cost-model-value" id="costCodex">$0.000</span>
+        <span style="font-size:11px;color:var(--text-secondary);">Codex</span>
+        <span id="statusDotCodex" style="font-size:10px;color:var(--text-muted);">idle</span>
       </div>
-      <div class="cost-model">
+      <div style="display:flex;align-items:center;gap:5px;">
         <span class="cost-dot gemini"></span>
-        <span class="cost-label">Gemini</span>
-        <span class="cost-model-value" id="costGemini">$0.000</span>
+        <span style="font-size:11px;color:var(--text-secondary);">Gemini</span>
+        <span id="statusDotGemini" style="font-size:10px;color:var(--text-muted);">idle</span>
       </div>
     </div>
 
-    <div class="budget-section">
-      <span class="cost-label" data-i18n="budget">Budget</span>
-      <div class="budget-bar-track">
-        <div class="budget-bar-fill" id="budgetFill"></div>
-      </div>
-      <span class="budget-percent" id="budgetPercent">0%</span>
+    <!-- Prompt preview (center, clickable) -->
+    <div id="promptPreview" onclick="expandPrompt()" style="flex:1;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;min-height:36px;overflow:hidden;" onmouseover="this.style.borderColor='var(--accent-blue)';this.style.background='var(--bg-tertiary)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--bg-primary)'">
+      <span style="color:var(--accent-blue);font-size:14px;flex-shrink:0;">▶</span>
+      <span id="promptPreviewText" style="color:var(--text-muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Click to start a new workflow...</span>
     </div>
 
-    <div class="opus-counter">
-      <span data-i18n="opusCalls">Opus Calls</span>
-      <span class="opus-counter-value" id="opusCount">0</span>
+    <!-- Elapsed time -->
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <span style="font-size:11px;color:var(--text-muted);">Elapsed</span>
+      <span id="elapsedTime" style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text-secondary);">00:00</span>
     </div>
+
   </div>
 </div>
 
@@ -2007,9 +2784,9 @@
   // ── State ──
   const state = {
     agents: {
-      claude: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
-      codex:  { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
-      gemini: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null },
+      claude: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
+      codex:  { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
+      gemini: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
     },
     cost: { total: 0, claude: 0, codex: 0, gemini: 0, budget: 5.0, opusCalls: 0 },
     phase: 'discover',
@@ -2128,11 +2905,240 @@
       rejectReason: '거절 사유를 입력하세요:',
       approve: '승인',
       reject: '거절',
+    },
+    zh: {
+      waiting: '等待响应中...',
+      task: '任务',
+      elapsed: '耗时',
+      cost: '费用',
+      output: '输出',
+      pending: '待定',
+      working: '运行中',
+      done: '完成',
+      error: '错误',
+      cancelled: '已取消',
+      totalCost: '总费用',
+      budget: '预算',
+      opusCalls: 'Opus 调用',
+      sendTo: (agent) => `发送给 ${agent}...`,
+      send: '发送',
+      startDebate: '开始讨论',
+      debateEmpty: '讨论尚未开始。',
+      consensus: '共识度',
+      taskBoard: '任务板',
+      models: '模型管理',
+      flow: '流程图',
+      debate: '讨论',
+      pendingCol: '待定',
+      workingCol: '进行中',
+      doneCol: '完成',
+      routing: '任务路由',
+      budgetControls: '费用限制',
+      sessionLimit: '会话限制',
+      dailyLimit: '每日限制',
+      opusLimit: 'Opus 调用限制',
+      save: '保存',
+      noModels: '无模型信息。请运行 model-checker.sh。',
+      loadingModels: '加载模型信息中...',
+      newModelDetected: '检测到新模型',
+      firstRunTitle: 'LLMTrio 首次运行设置',
+      firstRunDesc: 'Gemini 搜索了最新的 AI 编码模型。请查看以下设置。',
+      confirm: '确认',
+      edit: '编辑',
+      dashboardStopped: '仪表板已停止。',
+      input: '输入',
+      userPrompt: '用户提示词',
+      merge: '合并',
+      resultIntegration: '结果整合',
+      fileBus: '文件系统 (消息总线)',
+      architecture: '架构',
+      implementation: '实现',
+      testing: '测试',
+      research: '研究',
+      codeReview: '代码审查',
+      documentation: '文档',
+      addOpinion: '添加您的意见到讨论...',
+      rejectReason: '请输入拒绝原因:',
+      approve: '批准',
+      reject: '拒绝',
+    },
+    ja: {
+      waiting: '応答待機中...',
+      task: 'タスク',
+      elapsed: '経過時間',
+      cost: 'コスト',
+      output: '出力',
+      pending: '待機',
+      working: '実行中',
+      done: '完了',
+      error: 'エラー',
+      cancelled: 'キャンセル済',
+      totalCost: '合計コスト',
+      budget: '予算',
+      opusCalls: 'Opus 呼出',
+      sendTo: (agent) => `${agent}に送信...`,
+      send: '送信',
+      startDebate: 'ディベート開始',
+      debateEmpty: 'ディベートはまだ始まっていません。',
+      consensus: 'コンセンサス',
+      taskBoard: 'タスクボード',
+      models: 'モデル管理',
+      flow: 'フロー図',
+      debate: 'ディベート',
+      pendingCol: '待機',
+      workingCol: '進行中',
+      doneCol: '完了',
+      routing: 'タスクルーティング',
+      budgetControls: 'コスト制限',
+      sessionLimit: 'セッション制限',
+      dailyLimit: '日次制限',
+      opusLimit: 'Opus 呼出制限',
+      save: '保存',
+      noModels: 'モデル情報がありません。model-checker.sh を実行してください。',
+      loadingModels: 'モデル情報を読み込み中...',
+      newModelDetected: '新しいモデルが検出されました',
+      firstRunTitle: 'LLMTrio 初回セットアップ',
+      firstRunDesc: 'Gemini が最新の AI コーディングモデルを検索しました。以下の設定を確認してください。',
+      confirm: '確認',
+      edit: '編集',
+      dashboardStopped: 'ダッシュボードが停止しました。',
+      input: '入力',
+      userPrompt: 'ユーザープロンプト',
+      merge: 'マージ',
+      resultIntegration: '結果統合',
+      fileBus: 'ファイルシステム (メッセージバス)',
+      architecture: 'アーキテクチャ',
+      implementation: '実装',
+      testing: 'テスト',
+      research: 'リサーチ',
+      codeReview: 'コードレビュー',
+      documentation: 'ドキュメント',
+      addOpinion: 'ディベートに意見を追加...',
+      rejectReason: '拒否理由を入力してください:',
+      approve: '承認',
+      reject: '拒否',
     }
   };
 
-  const lang = (navigator.language || 'en').startsWith('ko') ? 'ko' : 'en';
-  const t = i18n[lang];
+  let lang = localStorage.getItem('llmtrio-lang') || (() => { const nl = (navigator.language || 'en').toLowerCase(); if (nl.startsWith('ko')) return 'ko'; if (nl.startsWith('zh')) return 'zh'; if (nl.startsWith('ja')) return 'ja'; return 'en'; })();
+  let t = i18n[lang];
+  // Inline string lookup for template literals (covers all lang==='ko' ternaries)
+  const _s = {
+    en: {
+      noTasksYet: 'No tasks yet', enterPrompt: 'Enter a prompt to start a workflow',
+      filter: 'Filter...', result: 'View', viewResult: 'View Result', cancel: 'Cancel',
+      status: 'Status', type: 'Type', agent: 'Agent', phase: 'Phase',
+      elapsedTime: 'Elapsed', errorLabel: 'Error', output: 'Output', loading: 'Loading...',
+      noOutput: 'No output', noResultFile: 'No result file', loadFailed: 'Failed to load',
+      copied: 'Copied!', copyAll: 'Copy All', copy: 'Copy', complete: 'Complete',
+      inProgress: 'In Progress', failed: 'Failed', toDo: 'To Do',
+      planPhase: 'Plan', executePhase: 'Execute',
+      workflowResults: 'Workflow results will appear here', finalResult: 'Final Result',
+      done: 'done', fail: 'fail', refresh: 'Refresh', tasksRunning: 'Tasks running...',
+      loadingResults: 'Loading...', startFlow: 'Start a workflow to see the flow diagram',
+      prompt: 'Prompt', active: 'active', parallel: 'Parallel', running: 'Running',
+      runningDot: 'Running...', collapse: '▲ Collapse', viewFull: '▼ View full',
+      loadingDot: 'Loading...', workflow: 'Workflow', briefing: 'Briefing',
+      briefingPlaceholder: 'A results briefing will appear here when a workflow completes.',
+      workflowBriefing: 'Workflow Briefing', nextAction: 'What would you like to do next?',
+      retryFailed: 'Retry failed tasks', viewInFlow: 'View in Flow diagram',
+      startNewTask: 'Start a new task', dismiss: 'Dismiss',
+      summary: 'Summary', taskResults: 'Task Results', issues: 'Issues',
+      taskComplete: (prompt, done, total, err, time, tokens) => `Task "${prompt}" is complete. ${done} of ${total} tasks succeeded${err ? `, ${err} failed` : ''}. Took ${time}s${tokens ? `, ~${tokens.toLocaleString()} tokens used` : ''}.`,
+      tasksFailed: (n) => `${n} task(s) failed. You can retry the failed tasks or increase the timeout in Settings.`,
+      checking: 'Checking...', askingGemini: 'Asking Gemini for latest models...',
+      saved: 'Saved!', idle: 'Idle — enter a prompt',
+      rejectReason: 'Enter rejection reason',
+    },
+    ko: {
+      noTasksYet: '아직 태스크가 없습니다', enterPrompt: '프롬프트를 입력해서 워크플로우를 시작하세요',
+      filter: '필터...', result: '결과', viewResult: '결과 보기', cancel: '취소',
+      status: '상태', type: '유형', agent: '에이전트', phase: '페이즈',
+      elapsedTime: '경과시간', errorLabel: '오류', output: '출력', loading: '로딩 중...',
+      noOutput: '출력 없음', noResultFile: '결과 파일 없음', loadFailed: '로딩 실패',
+      copied: '복사됨!', copyAll: '전체 복사', copy: '복사', complete: '완료',
+      inProgress: '진행중', failed: '실패', toDo: '대기',
+      planPhase: '계획', executePhase: '실행',
+      workflowResults: '워크플로우 결과가 여기에 표시됩니다', finalResult: '최종 결과',
+      done: '완료', fail: '실패', refresh: '새로고침', tasksRunning: '작업 진행 중...',
+      loadingResults: '결과 로딩 중...', startFlow: '워크플로우를 시작하면 흐름도가 표시됩니다',
+      prompt: '프롬프트', active: '진행중', parallel: '병렬 실행', running: '진행중',
+      runningDot: '진행 중...', collapse: '▲ 접기', viewFull: '▼ 전체 보기',
+      loadingDot: '로딩...', workflow: '워크플로우', briefing: '브리핑',
+      briefingPlaceholder: '워크플로우가 완료되면 결과 브리핑이 여기에 표시됩니다.',
+      workflowBriefing: '워크플로우 결과 브리핑', nextAction: '다음 작업을 선택해 주세요:',
+      retryFailed: '실패한 작업 재시도', viewInFlow: '흐름도에서 자세히 보기',
+      startNewTask: '새 작업 시작하기', dismiss: '확인',
+      summary: '요약', taskResults: '작업별 결과', issues: '주의사항',
+      taskComplete: (prompt, done, total, err, time, tokens) => `"${prompt}" 작업이 완료되었습니다. 총 ${total}개 태스크 중 ${done}개 성공${err ? `, ${err}개 실패` : ''}. 소요시간 ${time}초${tokens ? `, ~${tokens.toLocaleString()} 토큰 사용` : ''}.`,
+      tasksFailed: (n) => `${n}개 태스크가 실패했습니다. 실패한 작업을 재시도하거나, 설정에서 타임아웃을 늘려보세요.`,
+      checking: '확인 중...', askingGemini: 'Gemini에게 최신 모델 정보를 요청 중...',
+      saved: '저장됨!', idle: '대기 중 — 프롬프트를 입력하세요',
+      rejectReason: '거절 사유를 입력하세요',
+    },
+    zh: {
+      noTasksYet: '暂无任务', enterPrompt: '输入提示词以启动工作流',
+      filter: '筛选...', result: '查看', viewResult: '查看结果', cancel: '取消',
+      status: '状态', type: '类型', agent: '代理', phase: '阶段',
+      elapsedTime: '耗时', errorLabel: '错误', output: '输出', loading: '加载中...',
+      noOutput: '无输出', noResultFile: '无结果文件', loadFailed: '加载失败',
+      copied: '已复制!', copyAll: '全部复制', copy: '复制', complete: '完成',
+      inProgress: '进行中', failed: '失败', toDo: '待办',
+      planPhase: '计划', executePhase: '执行',
+      workflowResults: '工作流结果将在此显示', finalResult: '最终结果',
+      done: '完成', fail: '失败', refresh: '刷新', tasksRunning: '任务进行中...',
+      loadingResults: '加载中...', startFlow: '启动工作流以查看流程图',
+      prompt: '提示词', active: '进行中', parallel: '并行执行', running: '运行中',
+      runningDot: '进行中...', collapse: '▲ 收起', viewFull: '▼ 查看全部',
+      loadingDot: '加载中...', workflow: '工作流', briefing: '简报',
+      briefingPlaceholder: '工作流完成后将在此显示结果简报。',
+      workflowBriefing: '工作流结果简报', nextAction: '请选择下一步操作:',
+      retryFailed: '重试失败任务', viewInFlow: '在流程图中查看详情',
+      startNewTask: '开始新任务', dismiss: '确认',
+      summary: '摘要', taskResults: '任务结果', issues: '注意事项',
+      taskComplete: (prompt, done, total, err, time, tokens) => `"${prompt}" 任务已完成。共 ${total} 个任务中 ${done} 个成功${err ? `，${err} 个失败` : ''}。耗时 ${time}秒${tokens ? `，约 ${tokens.toLocaleString()} 令牌` : ''}。`,
+      tasksFailed: (n) => `${n} 个任务失败。可以重试失败任务或在设置中增加超时时间。`,
+      checking: '检查中...', askingGemini: '正在向 Gemini 查询最新模型信息...',
+      saved: '已保存!', idle: '空闲 — 请输入提示词',
+      rejectReason: '请输入拒绝原因',
+    },
+    ja: {
+      noTasksYet: 'タスクがありません', enterPrompt: 'プロンプトを入力してワークフローを開始',
+      filter: 'フィルター...', result: '表示', viewResult: '結果を見る', cancel: 'キャンセル',
+      status: 'ステータス', type: 'タイプ', agent: 'エージェント', phase: 'フェーズ',
+      elapsedTime: '経過時間', errorLabel: 'エラー', output: '出力', loading: '読み込み中...',
+      noOutput: '出力なし', noResultFile: '結果ファイルなし', loadFailed: '読み込み失敗',
+      copied: 'コピー済!', copyAll: '全てコピー', copy: 'コピー', complete: '完了',
+      inProgress: '進行中', failed: '失敗', toDo: '待機',
+      planPhase: '計画', executePhase: '実行',
+      workflowResults: 'ワークフロー結果がここに表示されます', finalResult: '最終結果',
+      done: '完了', fail: '失敗', refresh: 'リフレッシュ', tasksRunning: 'タスク実行中...',
+      loadingResults: '読み込み中...', startFlow: 'ワークフローを開始するとフロー図が表示されます',
+      prompt: 'プロンプト', active: '進行中', parallel: '並列実行', running: '実行中',
+      runningDot: '実行中...', collapse: '▲ 閉じる', viewFull: '▼ 全体を見る',
+      loadingDot: '読み込み中...', workflow: 'ワークフロー', briefing: 'ブリーフィング',
+      briefingPlaceholder: 'ワークフロー完了時に結果ブリーフィングがここに表示されます。',
+      workflowBriefing: 'ワークフロー結果ブリーフィング', nextAction: '次のアクションを選択してください:',
+      retryFailed: '失敗タスクを再試行', viewInFlow: 'フロー図で詳細を見る',
+      startNewTask: '新しいタスクを開始', dismiss: '閉じる',
+      summary: '概要', taskResults: 'タスク別結果', issues: '注意事項',
+      taskComplete: (prompt, done, total, err, time, tokens) => `"${prompt}" タスクが完了しました。全 ${total} タスク中 ${done} 件成功${err ? `、${err} 件失敗` : ''}。所要時間 ${time}秒${tokens ? `、約 ${tokens.toLocaleString()} トークン使用` : ''}。`,
+      tasksFailed: (n) => `${n} 件のタスクが失敗しました。失敗タスクを再試行するか、設定でタイムアウトを延長してください。`,
+      checking: '確認中...', askingGemini: 'Gemini に最新モデル情報を問い合わせ中...',
+      saved: '保存済み!', idle: '待機中 — プロンプトを入力してください',
+      rejectReason: '拒否理由を入力してください',
+    },
+  };
+  function tt(key) { return (_s[lang] || _s.en)[key] || _s.en[key] || key; }
+
+  // Task name translation
+  const _taskNames = {
+    en: { architecture: 'Architecture', scaffold: 'Scaffold', research: 'Research', implementation: 'Implementation', 'code-review': 'Code Review', documentation: 'Documentation', 'single-task': 'Single Task' },
+    ko: { architecture: '아키텍처', scaffold: '스캐폴드', research: '리서치', implementation: '구현', 'code-review': '코드 리뷰', documentation: '문서화', 'single-task': '단일 작업' },
+    zh: { architecture: '架构', scaffold: '脚手架', research: '研究', implementation: '实现', 'code-review': '代码审查', documentation: '文档', 'single-task': '单一任务' },
+    ja: { architecture: 'アーキテクチャ', scaffold: 'スキャフォールド', research: 'リサーチ', implementation: '実装', 'code-review': 'コードレビュー', documentation: 'ドキュメント', 'single-task': '単一タスク' },
+  };
+  function tn(name) { return (_taskNames[lang] || _taskNames.en)[name] || _taskNames.en[name] || name; }
 
   function applyI18n() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -2145,7 +3151,17 @@
       else if (t[key]) el.placeholder = t[key];
     });
     document.documentElement.lang = lang;
+    const sel = $('langSelect');
+    if (sel) sel.value = lang;
   }
+
+  window.setLanguage = function(l) {
+    lang = l;
+    t = i18n[lang] || i18n.en;
+    localStorage.setItem('llmtrio-lang', lang);
+    applyI18n();
+    renderActiveTab();
+  };
 
   const STATUS_LABELS = {
     pending: t.pending,
@@ -2164,6 +3180,17 @@
 
   // ── Throttled render via rAF ──
   let renderQueued = false;
+  function getActiveTab() {
+    const active = document.querySelector('.main-tab.active');
+    return active ? active.dataset.tab : 'results';
+  }
+
+  function renderActiveTab() {
+    const tab = getActiveTab();
+    if (tab === 'flow') renderFlowDiagram();
+    if (tab === 'results') renderResultsPanel();
+  }
+
   function queueRender() {
     if (renderQueued) return;
     renderQueued = true;
@@ -2177,6 +3204,31 @@
   function render() {
     for (const agent of ['claude', 'codex', 'gemini']) {
       const a = state.agents[agent];
+
+      // Card state class
+      const card = $(`card-${agent}`);
+      card.classList.remove('is-working', 'is-done', 'is-error');
+      if (a.status === 'working') card.classList.add('is-working');
+      else if (a.status === 'done') card.classList.add('is-done');
+      else if (a.status === 'error') card.classList.add('is-error');
+
+      // Progress bar
+      const prog = $(`progress-${agent}`);
+      if (prog) {
+        prog.className = 'agent-progress-fill' + (a.status === 'done' ? ' done' : a.status === 'error' ? ' error' : '');
+        if (a.status === 'working') {
+          const elapsed = a.elapsed || ((a.startedAt ? (Date.now() - a.startedAt) / 1000 : 0));
+          prog.style.width = Math.min(95, elapsed * 2) + '%';
+        } else if (a.status === 'done') {
+          prog.style.width = '100%';
+        } else if (a.status === 'error') {
+          prog.style.width = '100%';
+        }
+      }
+
+      // Model display
+      const modelEl = $(`model-${agent}`);
+      if (modelEl) modelEl.textContent = a.model ? formatModel(a.model) : '—';
 
       // Status badge
       const badge = $(`status-${agent}`);
@@ -2194,8 +3246,8 @@
       }
 
       // Meta
-      $(`cost-${agent}`).textContent = formatCost(a.cost);
-      $(`file-${agent}`).textContent = a.file || '—';
+      const fileEl = $(`file-${agent}`);
+      if (fileEl) fileEl.textContent = a.file || '—';
 
       // Output (auto-scroll)
       const outputEl = $(`output-${agent}`);
@@ -2205,67 +3257,102 @@
         outputEl.scrollTop = outputEl.scrollHeight;
       }
 
-      // Flow diagram node
-      const flowNode = $(`flow-${agent}`);
-      if (flowNode) flowNode.dataset.status = a.status;
-      const flowSub = $(`flow-${agent}-sub`);
-      if (flowSub) flowSub.textContent = a.task || STATUS_LABELS[a.status];
+      // Flow diagram — handled by renderFlowDiagram()
     }
 
     // Cost meter
-    $('totalCost').textContent = formatCost(state.cost.total);
-    $('costClaude').textContent = formatCost(state.cost.claude);
-    $('costCodex').textContent = formatCost(state.cost.codex);
-    $('costGemini').textContent = formatCost(state.cost.gemini);
-    $('opusCount').textContent = state.cost.opusCalls;
+    // Update bottom bar agent status dots
+    ['claude', 'codex', 'gemini'].forEach(name => {
+      const dot = $('statusDot' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (dot) {
+        const s = state.agents[name].status;
+        dot.textContent = s === 'pending' ? 'idle' : s;
+        dot.style.color = s === 'working' ? 'var(--accent-blue)' : s === 'done' ? 'var(--accent-green)' : s === 'error' ? 'var(--accent-red)' : 'var(--text-muted)';
+      }
+    });
 
-    // Budget bar
-    const pct = state.cost.budget > 0
-      ? Math.min((state.cost.total / state.cost.budget) * 100, 100)
-      : 0;
-    const fill = $('budgetFill');
-    fill.style.width = pct + '%';
-    fill.className = 'budget-bar-fill' +
-      (pct > 80 ? ' danger' : pct > 50 ? ' warn' : '');
-    $('budgetPercent').textContent = Math.round(pct) + '%';
+    // Workflow phase badge
+    const phaseBadge = $('workflowPhaseBadge');
+    if (phaseBadge) {
+      if (state.phase && state.phase !== 'discover') {
+        phaseBadge.style.display = 'inline-block';
+        if (state.phase === 'complete') {
+          phaseBadge.textContent = '✓ Complete';
+          phaseBadge.style.background = 'rgba(52,211,153,0.15)';
+          phaseBadge.style.color = 'var(--accent-green)';
+          phaseBadge.style.borderColor = 'rgba(52,211,153,0.3)';
+        } else if (state.phase === 'awaiting-approval') {
+          phaseBadge.textContent = '⏸ Awaiting Approval';
+          phaseBadge.style.background = 'rgba(245,215,110,0.15)';
+          phaseBadge.style.color = 'var(--accent-yellow)';
+          phaseBadge.style.borderColor = 'rgba(245,215,110,0.3)';
+        } else {
+          phaseBadge.textContent = state.phase;
+          phaseBadge.style.background = 'rgba(91,141,239,0.15)';
+          phaseBadge.style.color = 'var(--accent-blue)';
+          phaseBadge.style.borderColor = 'rgba(91,141,239,0.3)';
+        }
+      } else if (state.workflowTasks && state.workflowTasks.length > 0) {
+        phaseBadge.style.display = 'inline-block';
+        phaseBadge.textContent = 'plan';
+      } else {
+        phaseBadge.style.display = 'none';
+      }
+    }
 
-    // Phase bar
-    renderPhase();
+    // Sync workflow tasks to local tasks array
+    if (state.workflowTasks && state.workflowTasks.length > 0) {
+      tasks = state.workflowTasks;
+    }
 
     // SSE indicator
     const ind = $('sseIndicator');
     ind.className = 'sse-indicator' + (state.sseConnected ? ' connected' : '');
   }
 
-  function renderPhase() {
-    const phases = ['discover', 'define', 'develop', 'deliver'];
-    const idx = phases.indexOf(state.phase);
-    const steps = document.querySelectorAll('.phase-step');
-    const connectors = document.querySelectorAll('.phase-connector');
-
-    steps.forEach((step, i) => {
-      step.classList.remove('active', 'completed');
-      if (i < idx) step.classList.add('completed');
-      else if (i === idx) step.classList.add('active');
-    });
-
-    connectors.forEach((conn, i) => {
-      conn.classList.toggle('completed', i < idx);
-    });
-  }
 
   function formatCost(val) {
     return '$' + (val || 0).toFixed(3);
   }
 
+  function formatTokens(val) {
+    if (!val) return '0';
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+    return val.toString();
+  }
+
   // ── Elapsed time ticker ──
   function tickElapsed() {
     const now = Date.now();
+    let anyWorking = false;
+    let earliest = Infinity;
     for (const agent of ['claude', 'codex', 'gemini']) {
       const a = state.agents[agent];
       if (a.status === 'working' && a.startedAt) {
-        const secs = (now - a.startedAt) / 1000;
+        anyWorking = true;
+        if (a.startedAt < earliest) earliest = a.startedAt;
+        const secs = (now - a.startedAt) / 1000 + (a.totalElapsed || 0);
         $(`elapsed-${agent}`).textContent = formatElapsed(secs);
+      } else if (a.status === 'done' || a.status === 'error') {
+        // Show final elapsed (static, no counting)
+        $(`elapsed-${agent}`).textContent = formatElapsed(a.totalElapsed || a.elapsed || 0);
+      } else {
+        // pending/idle — show nothing
+        $(`elapsed-${agent}`).textContent = '0.0s';
+      }
+    }
+    // Update bottom bar elapsed
+    const el = $('elapsedTime');
+    if (el) {
+      if (anyWorking) {
+        const totalSecs = Math.floor((now - earliest) / 1000);
+        const mm = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const ss = String(totalSecs % 60).padStart(2, '0');
+        el.textContent = mm + ':' + ss;
+        el.style.color = 'var(--accent-blue)';
+      } else {
+        el.style.color = 'var(--text-secondary)';
       }
     }
     requestAnimationFrame(tickElapsed);
@@ -2276,6 +3363,31 @@
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return m + 'm ' + s + 's';
+  }
+
+  function formatModel(model) {
+    if (!model) return '';
+    // "claude-opus-4.6" → "claude opus 4.6"
+    // "claude-sonnet-4-6" → "claude sonnet 4.6"
+    // "gpt-5.4-codex" → "codex 5.4"
+    // "gemini-3.1-pro" → "gemini 3.1 pro"
+    const m = model.toLowerCase();
+    if (m.includes('codex') || m.includes('gpt')) {
+      const ver = m.match(/(\d+[\.\d]*)/);
+      return 'codex' + (ver ? ' ' + ver[1] : '');
+    }
+    if (m.includes('claude')) {
+      const variant = m.includes('opus') ? 'opus' : m.includes('sonnet') ? 'sonnet' : m.includes('haiku') ? 'haiku' : '';
+      const ver = m.match(/(\d+[\.\-]\d+)/);
+      const verStr = ver ? ver[1].replace('-', '.') : '';
+      return 'claude' + (variant ? ' ' + variant : '') + (verStr ? ' ' + verStr : '');
+    }
+    if (m.includes('gemini')) {
+      const ver = m.match(/(\d+[\.\d]*)/);
+      const variant = m.includes('pro') ? 'pro' : m.includes('flash') ? 'flash' : '';
+      return 'gemini' + (ver ? ' ' + ver[1] : '') + (variant ? ' ' + variant : '');
+    }
+    return model;
   }
 
   // ── Clock ──
@@ -2292,7 +3404,9 @@
     const a = state.agents[agent];
     if (!a) return;
 
-    if (data.status !== undefined) {
+    let statusChanged = false;
+    if (data.status !== undefined && data.status !== a.status) {
+      statusChanged = true;
       if (data.status === 'working' && a.status !== 'working') {
         a.startedAt = Date.now();
       }
@@ -2328,18 +3442,31 @@
   }
 
   function applyFullState(fullState) {
-    if (fullState.agents) {
-      for (const [agent, data] of Object.entries(fullState.agents)) {
-        if (state.agents[agent]) {
-          Object.assign(state.agents[agent], data);
-        }
+    // Set workflow ID on initial load
+    if (fullState.workflowId) _currentWorkflowId = fullState.workflowId;
+    if (fullState.phase) state.phase = fullState.phase;
+    if (fullState.prompt) state.workflowPrompt = fullState.prompt;
+    if (fullState.tasks) {
+      syncTasksToAgents(fullState.tasks);
+    }
+    // Update prompt preview if workflow is active
+    if (fullState.prompt) {
+      const preview = $('promptPreviewText');
+      if (preview) {
+        preview.textContent = fullState.prompt;
+        preview.style.color = 'var(--text-primary)';
       }
     }
-    if (fullState.cost) {
-      Object.assign(state.cost, fullState.cost);
+    // Show approval widget if page loads in awaiting-approval state
+    if (fullState.phase === 'awaiting-approval') {
+      showApprovalWidget();
     }
-    if (fullState.phase) {
-      state.phase = fullState.phase;
+    // Reset briefing on idle/new workflow
+    if (fullState.phase === 'idle' || (fullState.phase === 'plan' && fullState.phaseProgress === 0)) {
+      briefingData = null;
+      briefingUnread = false;
+      const badge = $('notifBadge');
+      if (badge) badge.classList.remove('show');
     }
     queueRender();
   }
@@ -2364,6 +3491,22 @@
       try {
         const data = JSON.parse(e.data);
         updateAgentCard(data.agent, data);
+        // Sync result data back to tasks array so flow/results stay in sync
+        if (data.taskId && tasks.length > 0) {
+          const task = tasks.find(t => t.id === data.taskId);
+          if (task) {
+            if (data.status && data.status !== task.status) task.status = data.status;
+            if (data.elapsed) task.elapsed = data.elapsed;
+            if (data.tokens) task.tokens = data.tokens;
+            // Update workflowTasks reference too
+            state.workflowTasks = tasks;
+            renderActiveTab();
+          }
+        }
+        // If we have agent data but no tasks, fetch full state to populate
+        if (tasks.length === 0 && data.status) {
+          fetchFullState();
+        }
       } catch (err) {
         console.error('agent-update parse error:', err);
       }
@@ -2377,16 +3520,73 @@
       }
     });
 
-    eventSource.addEventListener('phase-update', (e) => {
+    eventSource.addEventListener('state-update', (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.phase) {
-          state.phase = data.phase;
-          queueRender();
+
+        // Skip state updates from old workflows
+        if (data.workflowId && _currentWorkflowId && data.workflowId !== _currentWorkflowId) {
+          return;
         }
+        // Track current workflow ID
+        if (data.workflowId) _currentWorkflowId = data.workflowId;
+
+        if (data.phase) state.phase = data.phase;
+        if (data.prompt) state.workflowPrompt = data.prompt;
+
+        // Sync tasks through single handler
+        if (data.tasks && Array.isArray(data.tasks)) {
+          syncTasksToAgents(data.tasks);
+        }
+
+        // Approval gate: show approval widget
+        if (data.phase === 'awaiting-approval') {
+          showApprovalWidget();
+        }
+
+        // On complete, finalize working agents
+        if (data.phase === 'complete') {
+          ['claude', 'codex', 'gemini'].forEach(name => {
+            const a = state.agents[name];
+            if (a.status === 'working') { a.status = 'done'; a.startedAt = null; }
+          });
+        }
+
+        queueRender();
+        renderActiveTab();
       } catch (err) {
-        console.error('phase-update parse error:', err);
+        console.error('state-update parse error:', err);
       }
+    });
+
+    eventSource.addEventListener('workflow-log', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log('[workflow]', data.message);
+        // Show workflow log in agent output panels
+        const match = data.message.match(/\[(\w+)\]\s*(.*)/);
+        if (match) {
+          const agent = match[1];
+          if (state.agents[agent]) {
+            state.agents[agent].output += data.message + '\n';
+            queueRender();
+          }
+        }
+      } catch {}
+    });
+
+    eventSource.addEventListener('workflow-done', () => {
+      console.log('[workflow] complete');
+      state.phase = 'complete';
+      _workflowStartedLocally = false;
+      // Fetch final state to ensure everything is synced
+      fetchFullState();
+      queueRender();
+      // Generate briefing and auto-open
+      setTimeout(async () => {
+        await generateBriefing();
+        openBriefing();
+      }, 800);
     });
 
     eventSource.onerror = () => {
@@ -2405,7 +3605,7 @@
   }
 
   function fetchFullState() {
-    fetch('/api/state')
+    fetch('/api/state', { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('state fetch failed');
         return res.json();
@@ -2423,7 +3623,115 @@
     }).then(r => r.json());
   }
 
-  // Exposed to global scope for onclick handlers
+  // Expand/collapse bottom-bar prompt
+  window.expandPrompt = function() {
+    const expanded = $('promptExpanded');
+    const preview = $('promptPreview');
+    expanded.style.display = 'block';
+    preview.style.display = 'none';
+    setTimeout(() => $('mainPromptInput').focus(), 50);
+  };
+
+  window.collapsePrompt = function() {
+    const expanded = $('promptExpanded');
+    const preview = $('promptPreview');
+    expanded.style.display = 'none';
+    preview.style.display = 'flex';
+  };
+
+  let _workflowStartedLocally = false;
+  let _currentWorkflowId = null;
+  let _workflowMode = localStorage.getItem('llmtrio-mode') || 'approval'; // 'approval' or 'auto'
+
+  window.setWorkflowMode = function(mode) {
+    _workflowMode = mode;
+    localStorage.setItem('llmtrio-mode', mode);
+    const approvalBtn = $('modeApproval');
+    const autoBtn = $('modeAuto');
+    if (mode === 'approval') {
+      approvalBtn.style.background = 'var(--accent-blue)';
+      approvalBtn.style.color = '#fff';
+      autoBtn.style.background = 'transparent';
+      autoBtn.style.color = 'var(--text-muted)';
+    } else {
+      autoBtn.style.background = 'var(--accent-blue)';
+      autoBtn.style.color = '#fff';
+      approvalBtn.style.background = 'transparent';
+      approvalBtn.style.color = 'var(--text-muted)';
+    }
+  };
+
+  window.startWorkflow = function() {
+    const input = $('mainPromptInput');
+    const text = input.value.trim();
+    if (!text) return;
+    _workflowStartedLocally = true;
+    _currentWorkflowId = null; // will be set from first state-update
+    // Reset previous briefing and tasks immediately
+    briefingData = null;
+    briefingUnread = false;
+    tasks = [];
+    state.workflowTasks = [];
+    state.phase = 'plan';
+    state.phaseProgress = 0;
+    state.sessionTokens = 0;
+    state.workflowPrompt = text;
+    resultsSummaryLoaded = false;
+    flowSelectedTaskId = null;
+    // Clear animation tracking
+    Object.keys(flowPrevStatuses).forEach(k => delete flowPrevStatuses[k]);
+    // Clear results panel content
+    const rsc = document.getElementById('resultsSummaryContent');
+    if (rsc) rsc.innerHTML = '';
+    // Reset agent states
+    ['claude', 'codex', 'gemini'].forEach(name => {
+      Object.assign(state.agents[name], { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '', totalElapsed: 0 });
+    });
+    const badge = $('notifBadge');
+    if (badge) badge.classList.remove('show');
+    // Close briefing modal if open
+    const modal = document.querySelector('.briefing-overlay');
+    if (modal) modal.remove();
+    queueRender();
+
+    const btn = $('startWorkflowBtn');
+    const status = $('workflowStatus');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+    status.textContent = '';
+    // Send as workflow start command
+    fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'prompt', content: text, workflow: true, autoMode: _workflowMode === 'auto' }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        status.textContent = 'Workflow started!';
+        status.style.color = 'var(--accent-green)';
+        input.value = '';
+        // Update preview text and collapse
+        $('promptPreviewText').textContent = text;
+        $('promptPreviewText').style.color = 'var(--text-primary)';
+        setTimeout(() => collapsePrompt(), 800);
+        // Switch to Flow tab — agent states will update via SSE from octopus-core
+        switchTab('flow');
+      } else {
+        status.textContent = data.error || 'Failed';
+        status.style.color = 'var(--accent-red)';
+      }
+      btn.disabled = false;
+      btn.textContent = '▶ Start';
+    })
+    .catch(() => {
+      status.textContent = 'Network error';
+      status.style.color = 'var(--accent-red)';
+      btn.disabled = false;
+      btn.textContent = '▶ Start';
+    });
+  };
+
   window.sendPrompt = function(agent) {
     const input = $('prompt-' + agent);
     const text = input.value.trim();
@@ -2440,8 +3748,25 @@
   window.switchTab = function(tabId) {
     document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.main-tab[data-tab="${tabId}"]`).classList.add('active');
-    $('tab-' + tabId).classList.add('active');
+    const tabEl = document.querySelector(`.main-tab[data-tab="${tabId}"]`);
+    if (tabEl) tabEl.classList.add('active');
+    const contentEl = $('tab-' + tabId);
+    if (contentEl) contentEl.classList.add('active');
+    // Close flow detail when switching tabs
+    if (tabId !== 'flow') {
+      flowSelectedTaskId = null;
+      const fd = document.getElementById('flowDetail');
+      if (fd) fd.classList.remove('open');
+    }
+    // Flow tab: fullscreen mode (hide left panel)
+    const app = document.getElementById('app');
+    if (tabId === 'flow') {
+      app.classList.add('flow-fullscreen');
+      renderFlowDiagram();
+    } else {
+      app.classList.remove('flow-fullscreen');
+    }
+    if (tabId === 'results') renderResultsPanel();
   };
 
   // ── Phase 2: Debate ──
@@ -2484,37 +3809,30 @@
     return div.innerHTML;
   }
 
-  // ── Task Board — Linear/Jira-style Kanban ──
+  // ── Task Board — Kanban Board ──
   let tasks = [];
   let kbFilter = '';
-  let kbGroupBy = 'status'; // 'status' | 'phase' | 'agent'
+  let draggedTaskId = null;
 
   const PHASE_META = {
-    discover: { num: 1, label: 'Discover', labelKo: '탐색', tasks: ['requirements-analysis', 'tech-research'] },
-    define:   { num: 2, label: 'Define',   labelKo: '설계', tasks: ['architecture-design', 'api-design'] },
-    develop:  { num: 3, label: 'Develop',  labelKo: '개발', tasks: ['implementation', 'testing'] },
-    deliver:  { num: 4, label: 'Deliver',  labelKo: '배포', tasks: ['code-review', 'documentation'] },
+    plan:    { num: 1, label: 'Plan',    ko: '계획', zh: '计划', ja: '計画', tasks: ['research', 'architecture', 'scaffold'] },
+    execute: { num: 2, label: 'Execute', ko: '실행', zh: '执行', ja: '実行', tasks: ['implementation', 'code-review', 'documentation'] },
   };
-  const PHASE_DEPS = { discover: [], define: ['discover'], develop: ['define'], deliver: ['develop'] };
-  const PRIORITY_MAP = { 'requirements-analysis': 'high', 'tech-research': 'medium', 'architecture-design': 'critical', 'api-design': 'high', 'implementation': 'critical', 'testing': 'high', 'code-review': 'high', 'documentation': 'medium' };
 
-  function getPhaseForTask(name) {
+  function getPhaseForTask(nameOrTask) {
+    if (typeof nameOrTask === 'object' && nameOrTask.phase) return nameOrTask.phase;
+    const name = typeof nameOrTask === 'string' ? nameOrTask : nameOrTask?.name;
     for (const [p, m] of Object.entries(PHASE_META)) { if (m.tasks.includes(name)) return p; }
     return null;
   }
 
-  function getTaskDeps(task) {
-    const phase = getPhaseForTask(task.name);
-    if (!phase) return [];
-    return (PHASE_DEPS[phase] || []).flatMap(depPhase =>
-      tasks.filter(t => getPhaseForTask(t.name) === depPhase)
-    );
-  }
-
-  function isBlocked(task) {
-    const deps = getTaskDeps(task);
-    return deps.length > 0 && !deps.every(d => d.status === 'done');
-  }
+  // Fixed kanban columns: To Do | In Progress | Done | Failed
+  const KB_COLUMNS = [
+    { key: 'todo',     label: { en: 'To Do',        ko: '대기',   zh: '待办',   ja: '待機'   }, dot: 'todo',     statuses: ['pending','approved'] },
+    { key: 'progress', label: { en: 'In Progress',  ko: '진행중', zh: '进行中', ja: '進行中' }, dot: 'progress', statuses: ['working'] },
+    { key: 'done',     label: { en: 'Done',         ko: '완료',   zh: '完成',   ja: '完了'   }, dot: 'done',     statuses: ['done'] },
+    { key: 'failed',   label: { en: 'Failed',       ko: '실패',   zh: '失败',   ja: '失敗'   }, dot: 'failed',   statuses: ['error','cancelled'] },
+  ];
 
   function renderTaskBoard() {
     const board = $('taskBoard');
@@ -2522,80 +3840,46 @@
       board.innerHTML = `
         <div class="kb-empty">
           <div class="kb-empty-icon">📋</div>
-          <div class="kb-empty-title">${lang === 'ko' ? '아직 태스크가 없습니다' : 'No tasks yet'}</div>
-          <div class="kb-empty-sub">${lang === 'ko' ? './trio start "프롬프트"로 워크플로우를 시작하세요' : 'Start a workflow with ./trio start "your prompt"'}</div>
+          <div class="kb-empty-title">${tt('noTasksYet')}</div>
+          <div class="kb-empty-sub">${tt('enterPrompt')}</div>
         </div>`;
       return;
     }
 
     const filtered = kbFilter
-      ? tasks.filter(t => (t.name||'').toLowerCase().includes(kbFilter) || (t.agent||'').toLowerCase().includes(kbFilter) || (t.type||'').toLowerCase().includes(kbFilter))
+      ? tasks.filter(t => (tn(t.name)||'').toLowerCase().includes(kbFilter) || (t.name||'').toLowerCase().includes(kbFilter) || (t.agent||'').toLowerCase().includes(kbFilter) || (t.type||'').toLowerCase().includes(kbFilter))
       : tasks;
 
     const totalDone = filtered.filter(t => t.status === 'done').length;
     const totalCount = filtered.length;
     const pct = totalCount ? Math.round(totalDone / totalCount * 100) : 0;
 
-    const cols = kbGroupBy === 'status'
-      ? [
-          { key: 'queued',  label: lang==='ko' ? '대기' : 'Queued',  items: filtered.filter(t => t.status==='pending' || t.status==='approved'), dot: 'queued' },
-          { key: 'running', label: lang==='ko' ? '진행중' : 'Running', items: filtered.filter(t => t.status==='working'), dot: 'running', wip: 6 },
-          { key: 'review',  label: lang==='ko' ? '리뷰' : 'Review',  items: filtered.filter(t => t.status==='done'), dot: 'review' },
-          { key: 'done',    label: lang==='ko' ? '완료' : 'Done',    items: filtered.filter(t => t.status==='done' && t.approved), dot: 'done' },
-          { key: 'failed',  label: lang==='ko' ? '실패' : 'Failed',  items: filtered.filter(t => t.status==='error' || t.status==='cancelled'), dot: 'failed' },
-        ]
-      : kbGroupBy === 'phase'
-      ? ['discover','define','develop','deliver'].map(p => ({
-          key: p,
-          label: lang==='ko' ? PHASE_META[p].labelKo : PHASE_META[p].label,
-          items: filtered.filter(t => getPhaseForTask(t.name) === p),
-          dot: p === state.phase ? 'running' : 'queued',
-        }))
-      : ['claude','codex','gemini'].map(a => ({
-          key: a,
-          label: a.charAt(0).toUpperCase() + a.slice(1),
-          items: filtered.filter(t => t.agent === a),
-          dot: 'queued',
-        }));
-
-    // When grouping by status, merge review into done if no approved tasks
-    if (kbGroupBy === 'status') {
-      const reviewCol = cols.find(c => c.key === 'review');
-      const doneCol = cols.find(c => c.key === 'done');
-      if (doneCol && doneCol.items.length === 0 && reviewCol) {
-        doneCol.items = reviewCol.items;
-        reviewCol.items = [];
-      }
-    }
-
     let html = `<div class="kb-toolbar">
-      <input class="kb-search" type="text" placeholder="${lang==='ko' ? '태스크 검색...' : 'Search tasks...'}" value="${escapeHtml(kbFilter)}" oninput="kbSearch(this.value)" />
-      <button class="kb-filter-btn ${kbGroupBy==='status' ? 'active' : ''}" onclick="kbSetGroup('status')">${lang==='ko' ? '상태별' : 'Status'}</button>
-      <button class="kb-filter-btn ${kbGroupBy==='phase' ? 'active' : ''}" onclick="kbSetGroup('phase')">${lang==='ko' ? '페이즈별' : 'Phase'}</button>
-      <button class="kb-filter-btn ${kbGroupBy==='agent' ? 'active' : ''}" onclick="kbSetGroup('agent')">${lang==='ko' ? '에이전트별' : 'Agent'}</button>
+      <input class="kb-search" type="text" placeholder="${tt('filter')}" value="${escapeHtml(kbFilter)}" oninput="kbSearch(this.value)" />
       <div class="kb-spacer"></div>
       <div class="kb-progress">
         <div class="kb-progress-bar"><div class="kb-progress-fill" style="width:${pct}%"></div></div>
-        <span class="kb-progress-text">${totalDone}/${totalCount} (${pct}%)</span>
+        <span class="kb-progress-text">${totalDone}/${totalCount}</span>
       </div>
     </div>
     <div class="kb-columns">`;
 
-    for (const col of cols) {
-      if (kbGroupBy === 'status' && col.items.length === 0 && (col.key === 'review')) continue;
-      const wipOver = col.wip && col.items.length > col.wip;
+    for (const col of KB_COLUMNS) {
+      const items = filtered.filter(t => col.statuses.includes(t.status || 'pending'));
+
       html += `<div class="kb-col">
         <div class="kb-col-head">
           <div class="kb-col-dot ${col.dot}"></div>
-          <span class="kb-col-name">${col.label}</span>
-          <span class="kb-col-count">${col.items.length}</span>
-          ${col.wip ? `<span class="kb-col-wip ${wipOver ? 'over' : ''}">WIP ${col.items.length}/${col.wip}</span>` : ''}
+          <span class="kb-col-title">${col.label[lang] || col.label.en}</span>
+          <span class="kb-col-count">${items.length}</span>
         </div>
         <div class="kb-col-body" data-col="${col.key}"
              ondragover="event.preventDefault();this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
-             ondrop="kbDrop(event,this)">
-          ${col.items.length === 0 ? `<div class="kb-col-empty">${lang==='ko' ? '비어있음' : 'No tasks'}</div>` : col.items.map(t => renderKbCard(t)).join('')}
+             ondrop="kbDrop(event,'${col.key}')">
+          ${items.length === 0
+            ? `<div class="kb-col-empty">${'—'}</div>`
+            : items.map(t => renderKbCard(t)).join('')}
         </div>
       </div>`;
     }
@@ -2605,38 +3889,64 @@
   }
 
   function renderKbCard(t) {
-    const phase = getPhaseForTask(t.name);
-    const phaseLabel = phase ? (lang==='ko' ? PHASE_META[phase].labelKo : PHASE_META[phase].label) : '';
-    const priority = PRIORITY_MAP[t.name] || 'low';
-    const pClass = 'p-' + priority;
-    const blocked = isBlocked(t);
-    const deps = getTaskDeps(t);
-    const blockerHtml = blocked
-      ? `<span class="kb-card-blocker">⛔ ${lang==='ko' ? '차단됨' : 'Blocked'}</span>`
-      : '';
+    const phase = getPhaseForTask(t);
+    const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '';
+    const phaseClass = phase === 'plan' ? 'phase-plan' : 'phase-execute';
+    const isWorking = t.status === 'working';
+    const hasResult = t.status === 'done' || t.status === 'error';
+    const shortId = (t.id || '').replace('task-', '').slice(0, 8).toUpperCase();
 
-    return `<div class="kb-card ${pClass} ${blocked ? 'blocked' : ''}" draggable="true" data-task-id="${t.id}"
-         ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)"
+    return `<div class="kb-card ${isWorking ? 'is-working' : ''}" draggable="true"
+         data-task-id="${t.id}"
+         ondragstart="kbDragStart(event,'${t.id}')"
+         ondragend="kbDragEnd(event)"
          onclick="openDetail('${t.id}')">
-      <div class="kb-card-actions">
-        <button class="kb-card-action-btn" onclick="event.stopPropagation();approveTask('${t.id}')" title="${i18n[lang].approve}">✓</button>
-        <button class="kb-card-action-btn" onclick="event.stopPropagation();rejectTask('${t.id}')" title="${i18n[lang].reject}">✕</button>
+      <div class="kb-card-head">
+        <span class="kb-card-key">${shortId}</span>
+        <span class="kb-card-title">${escapeHtml(tn(t.name) || t.id)}</span>
       </div>
-      <div class="kb-card-id">${escapeHtml(t.id || '')}</div>
-      <div class="kb-card-title">${escapeHtml(t.name || t.id)}</div>
       <div class="kb-card-labels">
-        <span class="kb-label type">${escapeHtml(t.type || '')}</span>
-        ${phaseLabel ? `<span class="kb-label phase">${phaseLabel}</span>` : ''}
+        ${phaseLabel ? `<span class="kb-label ${phaseClass}">${phaseLabel}</span>` : ''}
+        <span class="kb-label type-label">${escapeHtml(t.type || '')}</span>
       </div>
       <div class="kb-card-footer">
         <div class="kb-avatar ${t.agent || ''}">${(t.agent||'?').charAt(0).toUpperCase()}</div>
+        <span class="kb-card-agent-name">${t.agent || ''}</span>
+        ${t.model ? `<span class="kb-card-model">${formatModel(t.model)}</span>` : ''}
+        ${t.error ? '<div class="kb-card-error-dot" title="' + escapeHtml(t.error) + '"></div>' : ''}
         <span class="kb-card-time">${formatElapsed(t.elapsed)}</span>
-        <span class="kb-card-cost">${formatCost(t.cost || 0)}</span>
-        ${blockerHtml}
-        ${t.error ? `<span class="kb-card-blocker" title="${escapeHtml(t.error)}">⚠ ${lang==='ko' ? '오류' : 'Error'}</span>` : ''}
+        ${hasResult ? `<button class="kb-card-result-btn" onclick="event.stopPropagation();viewResult('${t.id}')">${tt('result')}</button>` : ''}
       </div>
     </div>`;
   }
+
+  // Drag & drop
+  window.kbDragStart = function(e, taskId) {
+    draggedTaskId = taskId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  window.kbDragEnd = function(e) {
+    e.target.classList.remove('dragging');
+    draggedTaskId = null;
+    document.querySelectorAll('.kb-col-body').forEach(el => el.classList.remove('drag-over'));
+  };
+  window.kbDrop = function(e, colKey) {
+    e.preventDefault();
+    document.querySelectorAll('.kb-col-body').forEach(el => el.classList.remove('drag-over'));
+    if (!draggedTaskId) return;
+    const task = tasks.find(t => t.id === draggedTaskId);
+    if (!task) return;
+    // Map column key back to a status for command
+    const statusMap = { todo: 'pending', progress: 'working', done: 'done', failed: 'cancelled' };
+    const newStatus = statusMap[colKey];
+    if (newStatus === 'done') {
+      postCommand({ type: 'approve', taskId: draggedTaskId, target: task.agent });
+    } else if (newStatus === 'cancelled') {
+      postCommand({ type: 'cancel', target: task.agent });
+    }
+    draggedTaskId = null;
+  };
 
   // Kanban interactions
   window.kbSearch = function(val) {
@@ -2653,144 +3963,971 @@
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     const detail = $('kbDetail');
-    const phase = getPhaseForTask(task.name);
-    const phaseLabel = phase ? (lang==='ko' ? PHASE_META[phase].labelKo : PHASE_META[phase].label) : '—';
-    const priority = PRIORITY_MAP[task.name] || 'low';
-    const deps = getTaskDeps(task);
+    const phase = getPhaseForTask(task);
+    const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '—';
+    const statusMap = { done: tt('complete'), working: tt('inProgress'), error: tt('failed'), pending: tt('toDo') };
+    const statusLabel = statusMap[task.status] || task.status;
 
-    $('kbDetailTitle').textContent = task.name || task.id;
+    $('kbDetailTitle').textContent = tn(task.name) || task.id;
 
     $('kbDetailBody').innerHTML = `
       <div class="kb-detail-row">
         <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '상태' : 'Status'}</div>
-          <div class="kb-detail-value"><span class="status-badge ${task.status}">${STATUS_LABELS[task.status] || task.status}</span></div>
+          <div class="kb-detail-label">${tt('status')}</div>
+          <div class="kb-detail-value" style="font-weight:600;">${statusLabel}</div>
         </div>
         <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '우선순위' : 'Priority'}</div>
-          <div class="kb-detail-value" style="text-transform:capitalize;">${priority}</div>
+          <div class="kb-detail-label">${tt('type')}</div>
+          <div class="kb-detail-value" style="text-transform:capitalize;">${escapeHtml(task.type || '—')}</div>
         </div>
       </div>
       <div class="kb-detail-row">
         <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '에이전트' : 'Agent'}</div>
+          <div class="kb-detail-label">${tt('agent')}</div>
           <div class="kb-detail-value" style="display:flex;align-items:center;gap:8px;">
             <div class="kb-avatar ${task.agent || ''}" style="width:26px;height:26px;font-size:11px;">${(task.agent||'?').charAt(0).toUpperCase()}</div>
             ${task.agent || '—'}
           </div>
         </div>
         <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '페이즈' : 'Phase'}</div>
+          <div class="kb-detail-label">${tt('phase')}</div>
           <div class="kb-detail-value">${phaseLabel}</div>
         </div>
       </div>
-      <div class="kb-detail-row">
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '유형' : 'Type'}</div>
-          <div class="kb-detail-value"><span class="kb-label type">${escapeHtml(task.type || '')}</span></div>
-        </div>
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '비용' : 'Cost'}</div>
-          <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatCost(task.cost || 0)}</div>
-        </div>
-      </div>
       <div class="kb-detail-field">
-        <div class="kb-detail-label">${lang==='ko' ? '경과시간' : 'Elapsed'}</div>
+        <div class="kb-detail-label">${tt('elapsedTime')}</div>
         <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatElapsed(task.elapsed)}</div>
       </div>
-      ${deps.length ? `
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${lang==='ko' ? '의존관계' : 'Dependencies'}</div>
-          <div class="kb-detail-deps">
-            ${deps.map(d => `
-              <div class="kb-detail-dep">
-                <span class="kb-detail-dep-icon">${d.status === 'done' ? '✅' : d.status === 'working' ? '🔄' : d.status === 'error' ? '❌' : '⏳'}</span>
-                <span style="flex:1;">${escapeHtml(d.name || d.id)}</span>
-                <span class="status-badge ${d.status}" style="font-size:9px;padding:2px 6px;">${STATUS_LABELS[d.status] || d.status}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>` : ''}
       ${task.error ? `
         <div class="kb-detail-field">
-          <div class="kb-detail-label" style="color:var(--accent-red);">${lang==='ko' ? '오류' : 'Error'}</div>
+          <div class="kb-detail-label" style="color:var(--accent-red);">${tt('errorLabel')}</div>
           <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);">${escapeHtml(task.error)}</div>
         </div>` : ''}
       <div class="kb-detail-field">
-        <div class="kb-detail-label">${lang==='ko' ? '출력' : 'Output'}</div>
-        <div class="kb-detail-output">${escapeHtml(state.agents[task.agent]?.output || t.waiting)}</div>
+        <div class="kb-detail-label">${tt('output')}</div>
+        <div class="kb-detail-output" id="detail-output-${task.id}">${tt('loading')}</div>
       </div>
     `;
 
     $('kbDetailActions').innerHTML = `
-      <button class="btn btn-approve" onclick="approveTask('${task.id}')" style="padding:8px 16px;">${i18n[lang].approve}</button>
-      <button class="btn btn-reject" onclick="rejectTask('${task.id}')" style="padding:8px 16px;">${i18n[lang].reject}</button>
+      <button class="btn btn-approve" onclick="viewResult('${task.id}')" style="padding:8px 16px;">${tt('viewResult')}</button>
       <div style="flex:1;"></div>
-      <button class="btn btn-cancel" onclick="postCommand({type:'cancel',target:'${task.agent}'})" style="padding:8px 16px;">${lang==='ko' ? '취소' : 'Cancel'}</button>
+      <button class="btn btn-cancel" onclick="postCommand({type:'cancel',target:'${task.agent}'})" style="padding:8px 16px;">${tt('cancel')}</button>
     `;
 
     detail.classList.add('open');
+
+    fetch('/api/result/' + task.id, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const el = document.getElementById('detail-output-' + task.id);
+        if (el && data) el.textContent = data.output || data.error || (tt('noOutput'));
+        else if (el) el.textContent = tt('noResultFile');
+      })
+      .catch(() => {});
   };
 
   window.closeDetail = function() {
     $('kbDetail').classList.remove('open');
   };
 
-  window.kbDrop = function(e, colBody) {
-    e.preventDefault();
-    colBody.classList.remove('drag-over');
-    if (!draggedTaskId) return;
-    const task = tasks.find(t => t.id === draggedTaskId);
-    if (task && task.agent) {
-      postCommand({ type: 'reassign', taskId: draggedTaskId, target: task.agent });
+  // ── Results Tab ──
+  const expandedResults = new Set();
+
+  let resultsSummaryLoaded = false;
+
+  function renderResultsPanel() {
+    const panel = $('resultsPanel');
+    if (!tasks.length) {
+      panel.innerHTML = `<div class="results-empty">
+        <div style="font-size:32px;opacity:0.3;">📄</div>
+        <div>${tt('workflowResults')}</div>
+      </div>`;
+      resultsSummaryLoaded = false;
+      return;
+    }
+
+    // Only show tasks that have actually run (not pending)
+    const ranTasks = tasks.filter(t => t.status === 'done' || t.status === 'error' || t.status === 'working');
+    const doneCount = ranTasks.filter(t => t.status === 'done').length;
+    const errCount = ranTasks.filter(t => t.status === 'error').length;
+    const workingCount = ranTasks.filter(t => t.status === 'working').length;
+    const totalTokens = ranTasks.reduce((s, t) => s + (t.tokens || 0), 0);
+    const totalTime = ranTasks.reduce((s, t) => s + (t.elapsed || 0), 0);
+
+    let html = `<div class="results-header">
+      <span class="results-header-title">${tt('finalResult')}</span>
+      <span class="results-header-info">${doneCount}/${ranTasks.length} ${tt('done')}${errCount ? ` · ${errCount} ${tt('fail')}` : ''}${workingCount ? ` · ${workingCount} ${tt('running')}` : ''} · ${formatElapsed(totalTime)}${totalTokens ? ` · ~${totalTokens.toLocaleString()} tok` : ''}</span>
+      <button class="results-header-refresh" onclick="resultsSummaryLoaded=false;renderResultsPanel()">${tt('refresh')}</button>
+    </div>
+    <div id="resultsSummaryBox" style="flex:1;overflow-y:auto;padding:20px 24px;">
+      <div id="resultsSummaryContent" style="font-size:13px;line-height:1.8;color:var(--text-primary);">
+        ${workingCount > 0
+          ? `<div style="color:var(--text-muted);">${tt('tasksRunning')}</div>`
+          : `<div style="color:var(--text-muted);">${tt('loadingResults')}</div>`}
+      </div>
+    </div>`;
+    panel.innerHTML = html;
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+
+    if (doneCount > 0) loadResultsSummary();
+  }
+
+  async function loadResultsSummary() {
+    const allTasks = tasks.filter(t => (t.status === 'done' || t.status === 'error') && (t.elapsed > 0 || t.tokens > 0));
+    if (!allTasks.length) return;
+
+    const results = {};
+    await Promise.all(allTasks.map(async (t) => {
+      try {
+        const res = await fetch('/api/result/' + t.id, { cache: 'no-store' });
+        if (res.ok) results[t.id] = await res.json();
+      } catch {}
+    }));
+
+    const el = document.getElementById('resultsSummaryContent');
+    if (!el) return;
+
+    // Merge all outputs into one continuous text
+    let merged = '';
+    for (const t of allTasks) {
+      const r = results[t.id];
+      const output = (r?.output || '').trim();
+      if (!output) continue;
+      merged += output + '\n\n';
+    }
+    merged = merged.trim();
+
+    // Errors section
+    const errTasks = allTasks.filter(t => t.status === 'error');
+    let errHtml = '';
+    if (errTasks.length) {
+      errHtml = `<div style="margin-bottom:16px;padding:10px 14px;background:rgba(239,83,80,0.08);border:1px solid rgba(239,83,80,0.2);border-radius:8px;color:var(--accent-red);font-size:12px;">
+        <strong>${tt('failed')}:</strong> ${errTasks.map(t => tn(t.name)).join(', ')}
+      </div>`;
+    }
+
+    // Stats line
+    const _modelsLabel = { en: 'Models', ko: '모델', zh: '模型', ja: 'モデル' };
+    const _timeLabel = { en: 'Time', ko: '소요', zh: '耗时', ja: '所要時間' };
+    const totalTime = allTasks.reduce((s, t) => s + (t.elapsed || 0), 0);
+    const totalTokens = allTasks.reduce((s, t) => s + (t.tokens || 0), 0);
+    const models = [...new Set(allTasks.map(t => t.model ? formatModel(t.model) : t.agent))];
+    const statsHtml = `<div style="margin-bottom:16px;padding:8px 12px;background:var(--bg-tertiary);border-radius:6px;font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;">
+      <span>${_modelsLabel[lang] || _modelsLabel.en}: ${models.join(', ')}</span>
+      <span>${_timeLabel[lang] || _timeLabel.en}: ${formatElapsed(totalTime)}</span>
+      ${totalTokens ? `<span>~${totalTokens.toLocaleString()} tokens</span>` : ''}
+    </div>`;
+
+    const _summaryLabel = { en: 'Summary', ko: '결론', zh: '结论', ja: '結論' };
+    const _generating = { en: 'Analyzing results...', ko: '결과 분석 중...', zh: '分析结果中...', ja: '結果分析中...' };
+    const _rawLabel = { en: 'Raw output', ko: '원본 출력', zh: '原始输出', ja: '元の出力' };
+
+    el.innerHTML = errHtml + statsHtml
+      + `<div id="resultConclusionBox" style="margin-bottom:16px;padding:14px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">${_summaryLabel[lang] || _summaryLabel.en}</div>
+          <div id="resultConclusionText" style="font-size:13px;line-height:1.7;color:var(--text-primary);white-space:pre-wrap;">${_generating[lang] || _generating.en}</div>
+        </div>`
+      + `<details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:11px;color:var(--text-muted);padding:4px 0;">${_rawLabel[lang] || _rawLabel.en}</summary>
+          <div style="white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.6;margin-top:8px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;max-height:400px;overflow-y:auto;">${escapeHtml(merged) || tt('noOutput')}</div>
+        </details>`
+      + `<div style="text-align:right;padding-top:8px;border-top:1px solid var(--border);">
+          <button class="btn btn-send" onclick="copyAllResults()" style="padding:6px 16px;font-size:12px;">${tt('copy')}</button>
+        </div>`;
+
+    resultsSummaryLoaded = true;
+
+    // Request compact conclusion via gemini
+    requestConclusion(merged);
+  }
+
+  async function requestConclusion(rawOutput) {
+    const el = document.getElementById('resultConclusionText');
+    if (!el) return;
+    const wp = state.workflowPrompt || '';
+    const prompts = {
+      ko: `아래는 여러 AI 에이전트가 "${wp}" 요청에 대해 작업한 결과다.
+
+3~5줄로 핵심만 정리해줘:
+- 결론: 무엇이 완료됐고, 현재 상태가 뭔지
+- 내가 다음에 해야 할 것
+
+불필요한 서론, 에이전트 내부 사고과정, 중복 제거하고 결론만.
+
+---
+${rawOutput.slice(0, 4000)}`,
+      zh: `以下是多个 AI 代理对"${wp}"请求的工作结果。
+
+用3-5行总结要点:
+- 结论: 完成了什么，当前状态
+- 我接下来需要做什么
+
+去掉多余内容，只保留结论。
+
+---
+${rawOutput.slice(0, 4000)}`,
+      ja: `以下は複数のAIエージェントが「${wp}」リクエストに対して作業した結果です。
+
+3〜5行で要点だけまとめてください:
+- 結論: 何が完了し、現在の状態は何か
+- 次にやるべきこと
+
+不要な前置き、エージェントの思考過程、重複を除き結論のみ。
+
+---
+${rawOutput.slice(0, 4000)}`,
+      en: `Below are outputs from multiple AI agents for the request "${wp}".
+
+Summarize in 3-5 lines:
+- Conclusion: what was done, current status
+- What I should do next
+
+No filler, no agent thinking process, just the conclusion.
+
+---
+${rawOutput.slice(0, 4000)}`,
+    };
+    const prompt = prompts[lang] || prompts.en;
+    try {
+      const res = await fetch('/api/run-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: 'gemini', prompt, timeout: 60 }),
+      });
+      const data = await res.json();
+      if (data.ok && data.output) {
+        el.textContent = data.output.trim();
+      } else {
+        el.textContent = rawOutput.split('\n').filter(l => l.trim() && !l.startsWith('I will') && !l.startsWith('I\'ll')).slice(-5).join('\n') || tt('noOutput');
+      }
+    } catch {
+      el.textContent = rawOutput.split('\n').filter(l => l.trim() && !l.startsWith('I will') && !l.startsWith('I\'ll')).slice(-5).join('\n') || tt('noOutput');
+    }
+  }
+
+
+  window.copyAllResults = async function() {
+    const allTasks = tasks.filter(t => t.status === 'done' || t.status === 'error');
+    let text = '';
+    for (const t of allTasks) {
+      try {
+        const res = await fetch('/api/result/' + t.id, { cache: 'no-store' });
+        if (res.ok) {
+          const r = await res.json();
+          text += `## ${tn(t.name)} (${t.model ? formatModel(t.model) : t.agent})\n${r.output || r.error || ''}\n\n`;
+        }
+      } catch {}
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('[onclick="copyAllResults()"]');
+      if (btn) { btn.textContent = tt('copied'); setTimeout(() => btn.textContent = tt('copyAll'), 1500); }
+    });
+  };
+
+  window.toggleResult = function(taskId) {
+    if (expandedResults.has(taskId)) {
+      expandedResults.delete(taskId);
+      const body = document.getElementById('result-body-' + taskId);
+      if (body) body.classList.remove('open');
+      const arrow = body?.previousElementSibling?.querySelector('.result-item-arrow');
+      if (arrow) arrow.classList.remove('open');
+    } else {
+      expandedResults.add(taskId);
+      const body = document.getElementById('result-body-' + taskId);
+      if (body) body.classList.add('open');
+      const arrow = body?.previousElementSibling?.querySelector('.result-item-arrow');
+      if (arrow) arrow.classList.add('open');
+      fetchResultOutput(taskId);
     }
   };
 
-  // Drag and drop
-  let draggedTaskId = null;
-
-  window.onDragStart = function(e, taskId) {
-    draggedTaskId = taskId;
-    e.target.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  window.onDragEnd = function(e) {
-    e.target.classList.remove('dragging');
-    draggedTaskId = null;
-    document.querySelectorAll('.task-column-body').forEach(el => el.classList.remove('drag-over'));
-  };
-
-  // Set up drop zones for the new phase-based columns
-  function initDragDrop() {
-    document.querySelectorAll('.task-column-body').forEach(col => {
-      col.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        col.classList.add('drag-over');
-      });
-      col.addEventListener('dragleave', () => {
-        col.classList.remove('drag-over');
-      });
-      col.addEventListener('drop', (e) => {
-        e.preventDefault();
-        col.classList.remove('drag-over');
-        if (!draggedTaskId) return;
-        const targetColumn = col.parentElement;
-        const targetStatus = targetColumn.dataset.status;
-        const task = tasks.find(t => t.id === draggedTaskId);
-        if (task && task.agent) {
-          postCommand({ type: 'reassign', taskId: draggedTaskId, target: task.agent, newStatus: targetStatus });
+  function fetchResultOutput(taskId) {
+    const el = document.getElementById('result-output-' + taskId);
+    if (!el) return;
+    fetch('/api/result/' + taskId, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          let content = '';
+          if (data.error) content += '⚠ ' + data.error + '\n\n';
+          content += data.output || (tt('noOutput'));
+          el.textContent = content;
+        } else {
+          el.textContent = tt('noResultFile');
         }
-      });
-    });
+      })
+      .catch(() => { el.textContent = tt('loadFailed'); });
   }
+
+  window.copyResult = function(taskId) {
+    const el = document.getElementById('result-output-' + taskId);
+    if (el) {
+      navigator.clipboard.writeText(el.textContent).then(() => {
+        const btn = el.parentElement.querySelector('.result-copy-btn');
+        if (btn) { btn.textContent = tt('copied'); setTimeout(() => { btn.textContent = tt('copy'); }, 1500); }
+      });
+    }
+  };
+
+  // Result viewer modal
+  window.viewResult = function(taskId) {
+    fetch('/api/result/' + taskId, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const overlay = document.createElement('div');
+        overlay.className = 'result-modal-overlay';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        const statusIcon = data.status === 'done' ? '✅' : data.status === 'error' ? '❌' : '🔄';
+        overlay.innerHTML = `<div class="result-modal">
+          <div class="result-modal-header">
+            <h3>${statusIcon} ${escapeHtml(data.task || taskId)} — ${escapeHtml(data.agent || '')}</h3>
+            <button class="result-modal-close" onclick="this.closest('.result-modal-overlay').remove()">✕</button>
+          </div>
+          <div class="result-modal-body">${escapeHtml(data.output || data.error || (tt('noOutput')))}</div>
+        </div>`;
+        document.body.appendChild(overlay);
+      })
+      .catch(() => {});
+  };
+
+  // ── Flow v4: Models on top, tasks flow down ──
+  const flowExpandedTasks = new Set();
+  const flowPrevStatuses = {}; // track previous status for animations
+  let flowSelectedTaskId = null;
+
+  function renderFlowDiagram() {
+    const container = $('flowV3Container');
+    if (!container) return;
+    const allTasks = state.workflowTasks || tasks;
+    const prompt = state.workflowPrompt || '';
+    const curPhase = state.phase || '';
+
+    if (!allTasks.length) {
+      container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);flex-direction:column;gap:8px;">
+        <div style="font-size:28px;opacity:0.3;">⟐</div>
+        <div>${tt('startFlow')}</div>
+      </div>`;
+      return;
+    }
+
+    const totalDone = allTasks.filter(t => t.status === 'done').length;
+    const totalErr = allTasks.filter(t => t.status === 'error').length;
+    const totalWorking = allTasks.filter(t => t.status === 'working').length;
+    const progressPct = allTasks.length ? Math.round(((totalDone + totalErr) / allTasks.length) * 100) : 0;
+    const totalTokens = allTasks.reduce((s, t) => s + (t.tokens || 0), 0);
+    const isComplete = curPhase === 'complete';
+
+    const statusText = { pending: tt('toDo'), working: tt('running'), done: tt('complete'), error: tt('failed') };
+    const statusColor = { pending: 'var(--text-muted)', working: 'var(--accent-blue)', done: 'var(--accent-green)', error: 'var(--accent-red)' };
+    const phaseLabels = { plan: `📐 ${tt('planPhase')}`, execute: `⚡ ${tt('executePhase')}` };
+
+    // Group tasks by phase
+    const phases = ['plan', 'execute'];
+    const phaseMap = {};
+    for (const p of phases) {
+      phaseMap[p] = allTasks.filter(t => t.phase === p);
+    }
+
+    let html = '';
+
+    // Top bar
+    html += `<div class="fv-bar">
+      <div class="fv-bar-prompt" title="${escapeHtml(prompt)}">
+        <span style="color:var(--text-muted);margin-right:4px;">${tt('prompt')}:</span>
+        ${escapeHtml(prompt) || '—'}
+      </div>
+      <div class="fv-bar-stat">
+        <div class="fv-pbar"><div class="fv-pfill" style="width:${progressPct}%"></div></div>
+        ${progressPct}%
+        ${totalWorking ? ` <span style="color:var(--accent-blue);">${totalWorking} ${tt('active')}</span>` : ''}
+      </div>
+    </div>`;
+
+    // Phase-based vertical flow
+    html += '<div class="fv-body">';
+
+    phases.forEach((phase, pi) => {
+      const phaseTasks = phaseMap[phase];
+      if (!phaseTasks || !phaseTasks.length) return;
+
+      const pDone = phaseTasks.every(t => t.status === 'done');
+      const pErr = phaseTasks.some(t => t.status === 'error');
+      const pWorking = phaseTasks.some(t => t.status === 'working');
+      const badgeClass = pDone ? 'done' : pErr ? 'error' : pWorking ? 'active' : '';
+
+      // Phase header
+      html += `<div class="fv-phase-group">
+        <div class="fv-phase-header">
+          <div class="fv-phase-badge ${badgeClass}">${phaseLabels[phase] || phase}</div>
+          <div class="fv-phase-line"></div>
+          <span style="font-size:10px;color:var(--text-muted);">${phaseTasks.filter(t=>t.status==='done').length}/${phaseTasks.length}</span>
+        </div>`;
+
+      // Parallel indicator + tasks row
+      if (phaseTasks.length > 1) {
+        html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--accent-blue);padding:2px 8px;border:1px solid rgba(91,141,239,0.3);border-radius:4px;background:rgba(91,141,239,0.06);">⫘ ${tt('parallel')}</div>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>`;
+      }
+      html += '<div class="fv-parallel">';
+      phaseTasks.forEach((t, ti) => {
+        const isExpanded = flowExpandedTasks.has(t.id);
+        const modelStr = t.model ? formatModel(t.model) : t.agent;
+
+        // Horizontal arrow between cards (only if sequential, not parallel)
+        // Since all tasks in a phase are parallel, we show a parallel connector
+        if (ti > 0 && phaseTasks.length > 1) {
+          html += `<div style="display:flex;align-items:center;flex-shrink:0;"><div style="width:8px;height:1px;border-top:1.5px dashed var(--border);"></div></div>`;
+        }
+
+        // Determine animation class
+        const prevStatus = flowPrevStatuses[t.id];
+        let animClass = '';
+        if (prevStatus && prevStatus !== t.status) {
+          if (t.status === 'done') animClass = ' just-completed';
+          else if (t.status === 'error') animClass = ' just-errored';
+        }
+        flowPrevStatuses[t.id] = t.status;
+        const selectedClass = flowSelectedTaskId === t.id ? ' selected' : '';
+
+        html += `<div class="fv-card${animClass}${selectedClass}" data-status="${t.status}" data-task-id="${t.id}" onclick="openFlowDetail('${t.id}')">
+          <div class="fv-card-head">
+            <div class="fv-card-dot ${t.status}"></div>
+            <div class="fv-card-name">${escapeHtml(tn(t.name))}</div>
+            <div class="fv-card-status" style="color:${statusColor[t.status] || 'var(--text-muted)'};">${statusText[t.status] || t.status}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span class="fv-card-agent agent-${t.agent}">${modelStr}</span>
+            <span class="fv-card-meta" style="margin-bottom:0;">${t.status === 'pending' ? tt('toDo') : formatElapsed(t.elapsed)}${t.tokens ? ' · ~' + t.tokens.toLocaleString() + ' tok' : ''}</span>
+          </div>`;
+
+        if (t.status === 'error' && t.error) {
+          html += `<div class="fv-card-summary err">${escapeHtml(t.error.slice(0, 150))}</div>`;
+        } else if (t.status === 'done' || t.status === 'working') {
+          html += `<div class="fv-card-summary" id="flow-summary-${t.id}">${t.status === 'working' ? tt('runningDot') : '...'}</div>`;
+        }
+
+        html += '</div>';
+      });
+      html += '</div>'; // fv-parallel
+      html += '</div>'; // fv-phase-group
+
+      // Connector arrow between phases
+      if (pi < phases.length - 1 && phaseMap[phases[pi + 1]]?.length) {
+        const nextPhaseTasks = phaseMap[phases[pi + 1]];
+        const connDone = pDone;
+        const connActive = pDone && nextPhaseTasks.some(t => t.status === 'working');
+        html += `<div class="fv-connector ${connDone ? (connActive ? 'active' : 'done') : ''}">
+          <div class="fv-connector-line"></div>
+          <div class="fv-connector-head"></div>
+        </div>`;
+      }
+    });
+
+    // Footer
+    html += `</div><div class="fv-footer">
+      <span style="font-weight:600;color:${isComplete ? 'var(--accent-green)' : 'var(--text-secondary)'};">
+        ${isComplete ? '✓ ' : ''}${tt('workflow')}: ${isComplete ? tt('complete') : tt('inProgress')}
+      </span>
+      <span style="color:var(--text-muted);">
+        ${totalDone}/${allTasks.length} ${tt('done')}${totalErr ? ` · ${totalErr} ${tt('failed')}` : ''}${totalTokens ? ` · ~${totalTokens.toLocaleString()} tokens` : ''}
+      </span>
+    </div>`;
+
+    container.innerHTML = html;
+
+    // Fetch summaries
+    for (const t of allTasks) {
+      if (t.status === 'done') fetchFlowSummary(t.id);
+      if (flowExpandedTasks.has(t.id)) fetchFlowFull(t.id);
+    }
+  }
+
+  function fetchFlowSummary(taskId) {
+    const el = document.getElementById('flow-summary-' + taskId);
+    if (!el || el.dataset.loaded) return;
+    fetch('/api/result/' + taskId, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const lines = data.lastLines || [];
+        const summary = lines.filter(l => l.trim()).join('\n') || (data.output || '').trim().split('\n').slice(-3).join('\n');
+        el.textContent = summary.slice(0, 200) || (tt('noOutput'));
+        el.dataset.loaded = '1';
+      })
+      .catch(() => {});
+  }
+
+  function fetchFlowFull(taskId) {
+    const el = document.getElementById('flow-full-' + taskId);
+    if (!el || el.dataset.loaded) return;
+    fetch('/api/result/' + taskId, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        let content = '';
+        if (data.error) content += '⚠ ' + data.error + '\n\n';
+        content += data.output || (tt('noOutput'));
+        el.textContent = content;
+        el.dataset.loaded = '1';
+      })
+      .catch(() => { el.textContent = 'Failed'; });
+  }
+
+  window.toggleFlowTask = function(taskId) {
+    if (flowExpandedTasks.has(taskId)) flowExpandedTasks.delete(taskId);
+    else flowExpandedTasks.add(taskId);
+    renderFlowDiagram();
+  };
+
+  window.openFlowDetail = function(taskId) {
+    const allTasks = state.workflowTasks || tasks;
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    flowSelectedTaskId = taskId;
+    // Re-render to update selected class
+    renderFlowDiagram();
+
+    const detail = document.getElementById('flowDetail');
+    const statusMap = { done: tt('complete'), working: tt('inProgress'), error: tt('failed'), pending: tt('toDo') };
+    const statusLabel = statusMap[task.status] || task.status;
+    const statusColor = { done: 'var(--accent-green)', working: 'var(--accent-blue)', error: 'var(--accent-red)', pending: 'var(--text-muted)' };
+    const phase = getPhaseForTask(task);
+    const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '—';
+
+    document.getElementById('flowDetailTitle').textContent = tn(task.name) || task.id;
+
+    document.getElementById('flowDetailBody').innerHTML = `
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${tt('status')}</div>
+          <div class="kb-detail-value" style="font-weight:600;color:${statusColor[task.status] || 'inherit'};">${statusLabel}</div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${tt('phase')}</div>
+          <div class="kb-detail-value">${phaseLabel}</div>
+        </div>
+      </div>
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${tt('agent')}</div>
+          <div class="kb-detail-value" style="display:flex;align-items:center;gap:8px;">
+            <div class="kb-avatar ${task.agent || ''}" style="width:26px;height:26px;font-size:11px;">${(task.agent||'?').charAt(0).toUpperCase()}</div>
+            ${task.agent || '—'}
+          </div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">Model</div>
+          <div class="kb-detail-value" style="font-family:var(--font-mono);font-size:12px;">${task.model ? formatModel(task.model) : '—'}</div>
+        </div>
+      </div>
+      <div class="kb-detail-row">
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">${tt('elapsedTime')}</div>
+          <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatElapsed(task.elapsed)}</div>
+        </div>
+        <div class="kb-detail-field">
+          <div class="kb-detail-label">Tokens</div>
+          <div class="kb-detail-value" style="font-family:var(--font-mono);">${task.tokens ? '~' + task.tokens.toLocaleString() : '—'}</div>
+        </div>
+      </div>
+      ${task.error ? `
+        <div class="kb-detail-field">
+          <div class="kb-detail-label" style="color:var(--accent-red);">${tt('errorLabel')}</div>
+          <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);color:var(--accent-red);">${escapeHtml(task.error)}</div>
+        </div>` : ''}
+      <div class="kb-detail-field">
+        <div class="kb-detail-label">${tt('output')}</div>
+        <div class="kb-detail-output" id="flow-detail-output-${task.id}" style="max-height:none;flex:1;">${tt('loading')}</div>
+      </div>
+      <div style="padding-top:8px;">
+        <button class="btn btn-send" onclick="copyFlowResult('${task.id}')" style="padding:6px 16px;font-size:12px;">${tt('copy')}</button>
+      </div>
+    `;
+
+    detail.classList.add('open');
+
+    // Fetch result
+    fetch('/api/result/' + task.id, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const el = document.getElementById('flow-detail-output-' + task.id);
+        if (el && data) {
+          el.textContent = data.output || data.error || tt('noOutput');
+        } else if (el) {
+          el.textContent = task.status === 'pending' ? tt('toDo') : task.status === 'working' ? tt('runningDot') : tt('noResultFile');
+        }
+      })
+      .catch(() => {});
+  };
+
+  window.closeFlowDetail = function() {
+    flowSelectedTaskId = null;
+    document.getElementById('flowDetail').classList.remove('open');
+    renderFlowDiagram();
+  };
+
+  window.copyFlowResult = function(taskId) {
+    const el = document.getElementById('flow-detail-output-' + taskId);
+    if (el) {
+      navigator.clipboard.writeText(el.textContent).then(() => {
+        const btn = el.parentElement?.nextElementSibling?.querySelector('.btn-send');
+        if (btn) { btn.textContent = tt('copied'); setTimeout(() => btn.textContent = tt('copy'), 1500); }
+      });
+    }
+  };
+
+  // ── Briefing / Notification system ──
+  let briefingData = null; // { html, generated }
+  let briefingUnread = false;
+
+  async function generateBriefing() {
+    const allTasks = state.workflowTasks || tasks;
+    if (!allTasks.length) return;
+    // Don't generate empty briefing
+    const hasDone = allTasks.some(t => t.status === 'done' && t.elapsed > 0);
+    if (!hasDone) return;
+
+    const prompt = state.workflowPrompt || '';
+    const totalDone = allTasks.filter(t => t.status === 'done').length;
+    const totalErr = allTasks.filter(t => t.status === 'error').length;
+    const totalTokens = allTasks.reduce((s, t) => s + (t.tokens || 0), 0);
+    const totalTime = allTasks.reduce((s, t) => s + (t.elapsed || 0), 0);
+
+    // Fetch all result outputs
+    const results = {};
+    await Promise.all(allTasks.map(async (t) => {
+      try {
+        const res = await fetch('/api/result/' + t.id, { cache: 'no-store' });
+        if (res.ok) results[t.id] = await res.json();
+      } catch {}
+    }));
+
+    // Build briefing HTML
+    let html = '';
+
+    // Overview
+    html += `<div class="brief-section">
+      <div class="brief-label">${tt('summary')}</div>
+      <p>${tt('taskComplete')(escapeHtml(prompt.slice(0, 80)), totalDone, allTasks.length, totalErr, totalTime, totalTokens)}</p>
+    </div>`;
+
+    // Per-task results
+    html += `<div class="brief-section">
+      <div class="brief-label">${tt('taskResults')}</div>`;
+
+    for (const t of allTasks) {
+      const r = results[t.id];
+      const dotColor = t.status === 'done' ? 'var(--accent-green)' : t.status === 'error' ? 'var(--accent-red)' : 'var(--text-muted)';
+
+      let summaryText = '';
+      if (t.status === 'error') {
+        summaryText = t.error || (r?.error) || tt('failed');
+      } else if (r) {
+        // Extract meaningful summary from output
+        const output = (r.output || '').trim();
+        if (output) {
+          // Take first 2-3 meaningful lines as summary
+          const lines = output.split('\n').filter(l => l.trim() && !l.startsWith('[') && !l.startsWith('#'));
+          summaryText = lines.slice(0, 3).join(' ').slice(0, 200);
+          if (!summaryText) summaryText = output.slice(0, 200);
+        } else {
+          summaryText = tt('noOutput');
+        }
+      }
+
+      html += `<div class="brief-task-item">
+        <div class="brief-task-dot" style="background:${dotColor};"></div>
+        <div class="brief-task-text">
+          <strong>${escapeHtml(tn(t.name))}</strong> <span style="opacity:0.6;">(${t.model ? formatModel(t.model) : t.agent}, ${formatElapsed(t.elapsed)})</span><br>
+          ${escapeHtml(summaryText)}
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+
+    // Issues / warnings
+    if (totalErr > 0) {
+      html += `<div class="brief-section">
+        <div class="brief-label" style="color:var(--accent-red);">${tt('issues')}</div>
+        <p style="color:var(--accent-red);opacity:0.85;">${tt('tasksFailed')(totalErr)}</p>
+      </div>`;
+    }
+
+    briefingData = { html, generated: Date.now() };
+    briefingUnread = true;
+    const badge = $('notifBadge');
+    if (badge) { badge.classList.add('show'); badge.textContent = '1'; }
+  }
+
+  window.openBriefing = function() {
+    if (!briefingData) {
+      // No briefing yet — show placeholder
+      const overlay = document.createElement('div');
+      overlay.className = 'briefing-overlay';
+      overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+      overlay.innerHTML = `<div class="briefing-panel">
+        <div class="briefing-header">
+          <div class="briefing-header-title">🔔 ${tt('briefing')}</div>
+          <button class="briefing-close" onclick="this.closest('.briefing-overlay').remove()">✕</button>
+        </div>
+        <div class="briefing-body" style="text-align:center;padding:40px;color:var(--text-muted);">
+          ${tt('briefingPlaceholder')}
+        </div>
+      </div>`;
+      document.body.appendChild(overlay);
+      return;
+    }
+
+    // Mark as read
+    briefingUnread = false;
+    const badge = $('notifBadge');
+    if (badge) badge.classList.remove('show');
+
+    const allTasks = state.workflowTasks || tasks;
+    const totalErr = allTasks.filter(t => t.status === 'error').length;
+    const prompt = state.workflowPrompt || '';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'briefing-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    // Action buttons with next-step suggestions
+    let actionsHtml = `<div class="brief-q">${tt('nextAction')}</div>
+      <div class="brief-btns">`;
+
+    if (totalErr > 0) {
+      actionsHtml += `<button class="brief-btn primary" onclick="retryFailed();this.closest('.briefing-overlay').remove();">${tt('retryFailed')}</button>`;
+    }
+    actionsHtml += `<button class="brief-btn" onclick="this.closest('.briefing-overlay').remove();switchTab('flow');">${tt('viewInFlow')}</button>`;
+    actionsHtml += `<button class="brief-btn" onclick="this.closest('.briefing-overlay').remove();focusPromptInput();">${tt('startNewTask')}</button>`;
+    if (totalErr === 0) {
+      actionsHtml += `<button class="brief-btn" onclick="this.closest('.briefing-overlay').remove();">${tt('dismiss')}</button>`;
+    }
+    actionsHtml += '</div>';
+
+    overlay.innerHTML = `<div class="briefing-panel">
+      <div class="briefing-header">
+        <div class="briefing-header-title">🔔 ${tt('workflowBriefing')}</div>
+        <button class="briefing-close" onclick="this.closest('.briefing-overlay').remove()">✕</button>
+      </div>
+      <div class="briefing-body">${briefingData.html}</div>
+      <div class="briefing-actions">${actionsHtml}</div>
+    </div>`;
+    document.body.appendChild(overlay);
+  };
+
+  // ── Approval Widget ──
+  function showApprovalWidget() {
+    // Remove existing overlay if any
+    const existing = document.querySelector('.approval-overlay');
+    if (existing) existing.remove();
+
+    const allTasks = state.workflowTasks || tasks;
+    const planTasks = allTasks.filter(t => t.phase === 'plan' && t.status === 'done');
+    const prompt = state.workflowPrompt || '';
+
+    const _labels = {
+      en: { title: 'Plan Review', subtitle: 'Review the plan before proceeding to execution', approve: 'Approve & Execute', reject: 'Reject', loading: 'Loading output...' },
+      ko: { title: '실행 전 확인', subtitle: 'Plan 결과를 검토하고 실행 여부를 결정하세요', approve: '승인 — 실행하기', reject: '거절', loading: '출력 로딩 중...' },
+      zh: { title: '计划审核', subtitle: '在执行前审核计划', approve: '批准并执行', reject: '拒绝', loading: '加载中...' },
+      ja: { title: '計画確認', subtitle: '実行前に計画を確認してください', approve: '承認して実行', reject: '拒否', loading: '読み込み中...' },
+    };
+    const lb = _labels[lang] || _labels.en;
+
+    // Build task cards
+    let cardsHtml = '';
+    for (const t of planTasks) {
+      const agentClass = `agent-${t.agent}`;
+      const modelStr = t.model ? formatModel(t.model) : t.agent;
+      cardsHtml += `<div class="approval-task-card">
+        <div class="approval-task-head">
+          <span class="fv-card-agent ${agentClass}">${modelStr}</span>
+          <span style="font-weight:600;font-size:13px;">${escapeHtml(tn(t.name))}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;">${formatElapsed(t.elapsed)}</span>
+        </div>
+        <div class="approval-task-output" id="approval-output-${t.id}">${lb.loading}</div>
+      </div>`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'approval-overlay';
+    overlay.innerHTML = `<div class="approval-panel">
+      <div class="approval-header">
+        <div class="approval-header-icon">⏸</div>
+        <div class="approval-header-text">
+          <h3>${lb.title}</h3>
+          <p>${lb.subtitle}</p>
+        </div>
+      </div>
+      <div class="approval-body">
+        ${prompt ? `<div style="margin-bottom:14px;padding:10px 14px;background:var(--bg-primary);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-secondary);">
+          <span style="color:var(--text-muted);font-size:11px;">Prompt:</span> ${escapeHtml(prompt)}
+        </div>` : ''}
+        ${cardsHtml}
+      </div>
+      <div class="approval-actions">
+        <button class="btn-reject-lg" onclick="rejectWorkflow()">${lb.reject}</button>
+        <button class="btn-approve-lg" onclick="approveWorkflow()">${lb.approve}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    // Notify
+    const badge = $('notifBadge');
+    if (badge) { badge.classList.add('show'); badge.textContent = '!'; }
+
+    // Fetch outputs
+    for (const t of planTasks) {
+      fetch('/api/result/' + t.id, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          const el = document.getElementById('approval-output-' + t.id);
+          if (el && data) el.textContent = data.output || data.error || tt('noOutput');
+          else if (el) el.textContent = tt('noOutput');
+        })
+        .catch(() => {});
+    }
+  }
+
+  window.approveWorkflow = function() {
+    postCommand({ type: 'approve', workflowApproval: true });
+    const overlay = document.querySelector('.approval-overlay');
+    if (overlay) overlay.remove();
+    const badge = $('notifBadge');
+    if (badge) badge.classList.remove('show');
+  };
+
+  window.rejectWorkflow = function() {
+    postCommand({ type: 'reject', workflowApproval: true });
+    const overlay = document.querySelector('.approval-overlay');
+    if (overlay) overlay.remove();
+    const badge = $('notifBadge');
+    if (badge) badge.classList.remove('show');
+  };
+
+  window.retryFailed = function() {
+    const allTasks = state.workflowTasks || tasks;
+    const prompt = state.workflowPrompt;
+    if (!prompt) return;
+    // Re-run workflow with same prompt
+    postCommand({ type: 'prompt', content: prompt, workflow: true });
+  };
+
+  window.focusPromptInput = function() {
+    const input = document.querySelector('.prompt-input');
+    if (input) { input.focus(); input.select(); }
+  };
+
+  // Workflow settings
+  // ── Model Update via Gemini ──
+  window.checkLatestModels = function() {
+    const btn = $('checkModelsBtn');
+    const statusEl = $('checkModelsStatus');
+    const resultEl = $('modelUpdateResult');
+
+    btn.disabled = true;
+    btn.textContent = tt('checking');
+    statusEl.textContent = tt('askingGemini');
+    resultEl.style.display = 'none';
+
+    fetch('/api/run-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent: 'gemini',
+        prompt: 'List the latest available AI models from OpenAI (GPT-4o, o1, o3, etc), Anthropic (Claude 4, Claude 3.5, Opus, Sonnet, Haiku, etc), and Google (Gemini 2.5, etc) as of 2026. For each give: model name, API model ID, and one-line description of key capability. Be concise, bullet points only. Do NOT execute any commands or touch any files.',
+        timeout: 60,
+      }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      const _checkBtn = { en: 'Check Latest Models', ko: '최신 모델 확인', zh: '检查最新模型', ja: '最新モデルを確認' };
+      const _checkDone = { en: 'Check complete', ko: '확인 완료', zh: '检查完成', ja: '確認完了' };
+      const _lastChecked = { en: 'Last checked: ', ko: '마지막 확인: ', zh: '上次检查: ', ja: '最終確認: ' };
+      const _reqFailed = { en: 'Request failed', ko: '요청 실패', zh: '请求失败', ja: 'リクエスト失敗' };
+      btn.textContent = _checkBtn[lang] || _checkBtn.en;
+
+      if (data.ok && data.output) {
+        resultEl.textContent = data.output.trim();
+        resultEl.style.display = 'block';
+        statusEl.textContent = _checkDone[lang] || _checkDone.en;
+        $('modelLastChecked').textContent = (_lastChecked[lang] || _lastChecked.en) + new Date().toLocaleString();
+      } else {
+        statusEl.textContent = ({ en: 'Failed: ', ko: '실패: ', zh: '失败: ', ja: '失敗: ' }[lang] || 'Failed: ') + (data.error || 'Unknown error').slice(0, 100);
+        if (data.output) {
+          resultEl.textContent = data.output.trim();
+          resultEl.style.display = 'block';
+        }
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      const _checkBtn = { en: 'Check Latest Models', ko: '최신 모델 확인', zh: '检查最新模型', ja: '最新モデルを確認' };
+      const _reqFailed = { en: 'Request failed', ko: '요청 실패', zh: '请求失败', ja: 'リクエスト失敗' };
+      btn.textContent = _checkBtn[lang] || _checkBtn.en;
+      statusEl.textContent = _reqFailed[lang] || _reqFailed.en;
+    });
+  };
+
+  window.saveWorkflowSettings = function() {
+    const settings = {
+      plan: {
+        research: $('wfPlanResearch').checked,
+        architecture: $('wfPlanArchitecture').checked,
+        scaffold: $('wfPlanScaffold').checked,
+      },
+      execute: {
+        implementation: $('wfExecImpl').checked,
+        'code-review': $('wfExecReview').checked,
+        documentation: $('wfExecDocs').checked,
+      },
+      timeout_seconds: parseInt($('wfTimeout').value) || 45,
+    };
+    // Save to server via budget endpoint (reuse)
+    fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'update-budget', content: JSON.stringify({ ...budget, timeout_seconds: settings.timeout_seconds, workflow: settings }) }),
+    }).then(() => {
+      // Also save locally
+      localStorage.setItem('workflowSettings', JSON.stringify(settings));
+      const btn = event.target;
+      btn.textContent = tt('saved');
+      setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+    });
+  };
+
+  // Load saved settings on init
+  try {
+    const saved = JSON.parse(localStorage.getItem('workflowSettings'));
+    if (saved) {
+      if (saved.plan) {
+        if ($('wfPlanResearch')) $('wfPlanResearch').checked = saved.plan.research !== false;
+        if ($('wfPlanArchitecture')) $('wfPlanArchitecture').checked = saved.plan.architecture !== false;
+        if ($('wfPlanScaffold')) $('wfPlanScaffold').checked = saved.plan.scaffold !== false;
+      }
+      if (saved.execute) {
+        if ($('wfExecImpl')) $('wfExecImpl').checked = saved.execute.implementation !== false;
+        if ($('wfExecReview')) $('wfExecReview').checked = saved.execute['code-review'] !== false;
+        if ($('wfExecDocs')) $('wfExecDocs').checked = saved.execute.documentation !== false;
+      }
+      if (saved.timeout_seconds && $('wfTimeout')) $('wfTimeout').value = saved.timeout_seconds;
+    }
+  } catch {}
 
   window.approveTask = function(taskId) {
     postCommand({ type: 'approve', taskId: taskId });
   };
 
   window.rejectTask = function(taskId) {
-    const reason = prompt(t.rejectReason);
+    const reason = prompt(tt('rejectReason'));
     if (reason !== null) {
       postCommand({ type: 'reject', taskId: taskId, content: reason });
     }
@@ -2824,13 +4961,54 @@
     }
   }
 
-  function handleTasksUpdate(data) {
-    if (Array.isArray(data.tasks)) {
-      tasks = data.tasks;
-    } else if (Array.isArray(data)) {
-      tasks = data;
+  // Single source of truth: sync task array → agent card states
+  function syncTasksToAgents(newTasks) {
+    // Track workflow ID from tasks to filter stale data
+    if (newTasks.length > 0 && newTasks[0].workflowId) {
+      const incomingWfId = newTasks[0].workflowId;
+      if (_currentWorkflowId && _currentWorkflowId !== incomingWfId) {
+        // Stale data from old workflow — ignore
+        return;
+      }
+      _currentWorkflowId = incomingWfId;
     }
-    renderTaskBoard();
+    tasks = newTasks;
+    state.workflowTasks = newTasks;
+
+    ['claude', 'codex', 'gemini'].forEach(name => {
+      const agentTasks = newTasks.filter(t => t.agent === name);
+      if (agentTasks.length === 0) return;
+      const a = state.agents[name];
+
+      const hasWorking = agentTasks.some(t => t.status === 'working');
+      const hasPending = agentTasks.some(t => t.status === 'pending');
+      const hasError = agentTasks.some(t => t.status === 'error');
+      const allDone = agentTasks.every(t => t.status === 'done');
+
+      const displayTask = agentTasks.find(t => t.status === 'working')
+        || agentTasks.find(t => t.status === 'pending')
+        || agentTasks[agentTasks.length - 1];
+
+      const newStatus = hasWorking ? 'working' : allDone ? 'done' : hasError ? 'error' : hasPending ? 'pending' : displayTask.status;
+
+      if (newStatus === 'working' && a.status !== 'working') a.startedAt = Date.now();
+      if (newStatus !== 'working' && a.status === 'working') a.startedAt = null;
+
+      a.status = newStatus;
+      a.task = `[${displayTask.phase || ''}] ${tn(displayTask.name)}`;
+      if (displayTask.elapsed) a.elapsed = displayTask.elapsed;
+      if (displayTask.model) a.model = displayTask.model;
+      a.turns = agentTasks.filter(t => t.status === 'done').length;
+      a.totalElapsed = agentTasks.reduce((s, t) => s + (t.elapsed || 0), 0);
+    });
+  }
+
+  function handleTasksUpdate(data) {
+    const newTasks = Array.isArray(data.tasks) ? data.tasks : Array.isArray(data) ? data : null;
+    if (!newTasks) return;
+    syncTasksToAgents(newTasks);
+    queueRender();
+    renderActiveTab();
   }
 
   // Patch SSE to add debate-update listener
@@ -2860,10 +5038,40 @@
   applyFullState = function(fullState) {
     origApplyFullState(fullState);
     if (fullState.tasks) {
-      tasks = fullState.tasks;
-      renderTaskBoard();
+      updateStatusSummary(fullState);
+      renderActiveTab();
     }
   };
+
+  function updateStatusSummary(fullState) {
+    const el = document.getElementById('statusSummaryText');
+    if (!el) return;
+    const phase = fullState.phase || 'idle';
+    const t = fullState.tasks || [];
+    const done = t.filter(x => x.status === 'done').length;
+    const working = t.filter(x => x.status === 'working').length;
+    const err = t.filter(x => x.status === 'error').length;
+    const total = t.length;
+    const prompt = fullState.prompt || '';
+    const truncPrompt = prompt.length > 50 ? prompt.slice(0, 50) + '…' : prompt;
+
+    if (phase === 'complete') {
+      el.innerHTML = `<div style="color:#4caf50;font-weight:600;margin-bottom:4px;">${tt('complete')}</div>` +
+        (truncPrompt ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">"${escapeHtml(truncPrompt)}"</div>` : '') +
+        `<div style="font-size:12px;">${done}/${total} ${tt('done')}${err ? `, ${err} ${tt('failed')}` : ''}</div>`;
+    } else if (working > 0) {
+      const workingNames = t.filter(x => x.status === 'working').map(x => `${x.agent}: ${tn(x.name)}`).join(', ');
+      el.innerHTML = `<div style="color:var(--accent-blue);font-weight:600;margin-bottom:4px;">${tt('running')} — ${phase}</div>` +
+        (truncPrompt ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">"${escapeHtml(truncPrompt)}"</div>` : '') +
+        `<div style="font-size:12px;">${workingNames}</div>` +
+        `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${done}/${total} ${tt('done')}</div>`;
+    } else if (total > 0) {
+      el.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">${phase}</div>` +
+        `<div style="font-size:12px;">${done}/${total} ${tt('done')}</div>`;
+    } else {
+      el.textContent = tt('idle');
+    }
+  }
 
   // ── Phase 3: Model Management ──
   let models = [];
@@ -2871,19 +5079,24 @@
   let budget = { session_limit: 5, daily_limit: 20, opus_call_limit: 50, warn_at: 0.8 };
 
   function loadModels() {
-    fetch('/api/models')
+    fetch('/api/models', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data && data.models) {
           models = data.models;
           renderModelGrid();
+          const el = $('modelLastUpdated');
+          if (el && data.lastUpdated) {
+            const d = new Date(data.lastUpdated);
+            el.textContent = 'Last updated: ' + d.toLocaleString();
+          }
         }
       })
       .catch(() => {});
   }
 
   function loadRouting() {
-    fetch('/api/routing')
+    fetch('/api/routing', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data && data.rules) {
@@ -2895,7 +5108,7 @@
   }
 
   function loadBudget() {
-    fetch('/api/budget')
+    fetch('/api/budget', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data) {
@@ -2932,7 +5145,7 @@
           ${(m.strengths || []).map(s => '<span class="strength-tag">' + escapeHtml(s) + '</span>').join('')}
         </div>
         <div class="model-card-pricing">
-          ${m.pricing ? '<span>' + t.input + ' $' + m.pricing.input + '/1M</span><span>' + t.output + ' $' + m.pricing.output + '/1M</span>' : ''}
+          ${m.pricing ? '<span>In $' + m.pricing.input + '/1M</span><span>Out $' + m.pricing.output + '/1M</span>' : ''}
         </div>
         ${m.benchmarks ? '<div class="model-card-benchmarks">Coding ' + (m.benchmarks.coding || '—') + ' · Reasoning ' + (m.benchmarks.reasoning || '—') + '</div>' : ''}
       </div>
@@ -2970,47 +5183,35 @@
 
   window.updateBudgetSlider = function(type, val) {
     if (type === 'session') {
-      $('valSession').textContent = '$' + parseFloat(val).toFixed(1);
+      $('valSession').textContent = val;
     } else if (type === 'daily') {
-      $('valDaily').textContent = '$' + parseInt(val);
-    } else if (type === 'opus') {
-      $('valOpus').textContent = val;
+      $('valDaily').textContent = val;
+    } else if (type === 'timeout') {
+      $('valTimeout').textContent = val + 'm';
     }
   };
 
   window.saveBudget = function() {
     const newBudget = {
-      session_limit: parseFloat($('sliderSession').value),
-      daily_limit: parseFloat($('sliderDaily').value),
-      opus_call_limit: parseInt($('sliderOpus').value),
+      max_turns_session: parseInt($('sliderSession').value),
+      max_turns_daily: parseInt($('sliderDaily').value),
+      timeout_minutes: parseInt($('sliderTimeout').value),
       warn_at: 0.8,
     };
-    state.cost.budget = newBudget.session_limit;
     postCommand({ type: 'update-budget', content: JSON.stringify(newBudget) });
     queueRender();
   };
 
   // ── Setup / Auth ──
   function checkAuthStatus() {
-    fetch('/api/auth-status')
+    fetch('/api/auth-status', { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         updateSetupCard('Claude', 'claude', data.claude);
         updateSetupCard('Codex', 'codex', data.codex);
         updateSetupCard('Gemini', 'gemini', data.gemini);
-        const btn = $('setupDoneBtn');
-        const msg = $('setupMessage');
-        if (data.ready) {
-          btn.disabled = false;
-          msg.textContent = 'At least one provider is ready. You can start!';
-          msg.style.color = 'var(--accent-green)';
-        } else {
-          btn.disabled = true;
-          msg.textContent = 'Connect at least one provider to continue.';
-          msg.style.color = 'var(--accent-orange)';
-        }
         if (!data.ready) {
-          $('setupOverlay').style.display = 'flex';
+          switchTab('setup');
         }
       })
       .catch(() => {});
@@ -3033,9 +5234,24 @@
       badge.className = 'status-badge done';
       badge.textContent = 'Ready';
       status.textContent = info.version || 'Authenticated';
-      if (installBtn) { installBtn.disabled = true; installBtn.textContent = 'Installed'; }
+      if (installBtn) { installBtn.style.display = 'none'; }
       if (installMsg) installMsg.textContent = '';
-      if (card) card.classList.add('ready');
+      if (card) {
+        card.classList.add('ready');
+        // Hide login/key inputs when authenticated
+        card.querySelectorAll('.agent-prompt-input, .btn').forEach(el => {
+          if (el !== badge && !el.classList.contains('status-badge')) el.style.display = 'none';
+        });
+        // Show a "connected" message instead
+        let connMsg = card.querySelector('.setup-connected-msg');
+        if (!connMsg) {
+          connMsg = document.createElement('div');
+          connMsg.className = 'setup-connected-msg';
+          connMsg.style.cssText = 'padding:10px 14px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:8px;color:var(--accent-green);font-size:13px;margin-top:4px;';
+          connMsg.textContent = '✓ Connected and ready to use';
+          card.appendChild(connMsg);
+        }
+      }
     } else {
       badge.className = 'status-badge cancelled';
       badge.textContent = 'Needs auth';
@@ -3046,14 +5262,39 @@
     }
   }
 
+  const PKG_NAMES = {claude:'@anthropic-ai/claude-code',codex:'@openai/codex',gemini:'@google/gemini-cli'};
+
+  function setupLog(el, text, color) {
+    const line = document.createElement('div');
+    line.style.cssText = 'font-size:12px;padding:2px 0;font-family:var(--font-mono);color:' + (color || 'var(--text-muted)');
+    const time = new Date().toLocaleTimeString('en-US', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    line.textContent = '[' + time + '] ' + text;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function getLogEl(name) {
+    const id = 'setupLog' + name;
+    let el = $(id);
+    if (!el) {
+      const card = $('setupCard' + name);
+      el = document.createElement('div');
+      el.id = id;
+      el.style.cssText = 'margin-top:10px;max-height:120px;overflow-y:auto;background:var(--bg-secondary);border-radius:8px;padding:8px 12px;border:1px solid var(--border-color);';
+      card.appendChild(el);
+    }
+    return el;
+  }
+
   window.installCli = function(provider) {
     const name = provider.charAt(0).toUpperCase() + provider.slice(1);
     const btn = $('setup' + name + 'InstallBtn');
-    const msg = $('setup' + name + 'InstallMsg');
+    const log = getLogEl(name);
     btn.disabled = true;
     btn.textContent = 'Installing...';
-    msg.textContent = 'This may take a minute...';
-    msg.style.color = 'var(--accent-blue)';
+    setupLog(log, 'Starting installation of ' + PKG_NAMES[provider] + '...', 'var(--accent-blue)');
+    setupLog(log, 'Running: npm install -g ' + PKG_NAMES[provider]);
+    setupLog(log, 'This may take 30-60 seconds. Please wait...');
     fetch('/api/install-cli', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -3062,20 +5303,21 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        msg.textContent = 'Installed successfully!';
-        msg.style.color = 'var(--accent-green)';
-        btn.textContent = 'Installed';
+        setupLog(log, 'Installation complete!', 'var(--accent-green)');
+        setupLog(log, name + ' CLI is now available.', 'var(--accent-green)');
+        btn.textContent = 'Installed ✓';
+        btn.style.opacity = '0.6';
       } else {
-        msg.textContent = 'Install failed. Try manually: npm i -g ' + ({claude:'@anthropic-ai/claude-code',codex:'@openai/codex',gemini:'@google/gemini-cli'}[provider] || '');
-        msg.style.color = 'var(--accent-red)';
+        setupLog(log, 'Installation failed.', 'var(--accent-red)');
+        setupLog(log, 'Try manually in terminal: npm i -g ' + PKG_NAMES[provider], 'var(--accent-orange)');
+        if (data.error) setupLog(log, 'Error: ' + data.error, 'var(--accent-red)');
         btn.disabled = false;
         btn.textContent = 'Retry';
       }
       checkAuthStatus();
     })
     .catch(() => {
-      msg.textContent = 'Network error';
-      msg.style.color = 'var(--accent-red)';
+      setupLog(log, 'Network error. Is the dashboard server running?', 'var(--accent-red)');
       btn.disabled = false;
       btn.textContent = 'Retry';
     });
@@ -3084,11 +5326,11 @@
   window.cliLogin = function(provider) {
     const name = provider.charAt(0).toUpperCase() + provider.slice(1);
     const btn = $('setup' + name + 'LoginBtn');
-    const msg = $('setup' + name + 'LoginMsg');
+    const log = getLogEl(name);
     btn.disabled = true;
-    btn.textContent = 'Opening browser...';
-    msg.textContent = 'Complete login in the browser window that opens.';
-    msg.style.color = 'var(--accent-blue)';
+    btn.textContent = 'Logging in...';
+    setupLog(log, 'Starting ' + name + ' authentication...', 'var(--accent-blue)');
+    setupLog(log, 'A browser window will open for login.');
     fetch('/api/cli-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -3096,35 +5338,38 @@
     })
     .then(r => r.json())
     .then(() => {
-      msg.textContent = 'Waiting for login... (complete in browser)';
-      // Poll auth status until login completes
+      setupLog(log, 'Browser login started. Complete the login in the new tab.', 'var(--accent-blue)');
+      setupLog(log, 'Waiting for authentication...');
       let polls = 0;
+      const dots = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
       const pollInterval = setInterval(() => {
         polls++;
-        if (polls > 60) { // 2 minutes timeout
+        if (polls > 60) {
           clearInterval(pollInterval);
-          msg.textContent = 'Login timed out. Try again.';
-          msg.style.color = 'var(--accent-orange)';
+          setupLog(log, 'Login timed out after 2 minutes.', 'var(--accent-orange)');
+          setupLog(log, 'Click "Browser Login" to try again.', 'var(--accent-orange)');
           btn.disabled = false;
-          btn.textContent = 'Login via Browser';
+          btn.textContent = 'Browser Login';
           return;
         }
-        fetch('/api/auth-status').then(r => r.json()).then(data => {
+        btn.textContent = dots[polls % dots.length] + ' Waiting...';
+        fetch('/api/auth-status', { cache: 'no-store' }).then(r => r.json()).then(data => {
           if (data[provider] && data[provider].authenticated) {
             clearInterval(pollInterval);
-            msg.textContent = 'Logged in!';
-            msg.style.color = 'var(--accent-green)';
-            btn.textContent = 'Logged in';
+            setupLog(log, 'Authentication successful!', 'var(--accent-green)');
+            setupLog(log, name + ' is ready to use.', 'var(--accent-green)');
+            btn.textContent = 'Logged in ✓';
+            btn.style.opacity = '0.6';
             checkAuthStatus();
           }
         }).catch(() => {});
       }, 2000);
     })
     .catch(() => {
-      msg.textContent = 'Failed to start login';
-      msg.style.color = 'var(--accent-red)';
+      setupLog(log, 'Failed to start login process.', 'var(--accent-red)');
+      setupLog(log, 'Make sure the CLI is installed first.', 'var(--accent-orange)');
       btn.disabled = false;
-      btn.textContent = 'Login via Browser';
+      btn.textContent = 'Browser Login';
     });
   };
 
@@ -3149,7 +5394,7 @@
   };
 
   window.closeSetup = function() {
-    $('setupOverlay').style.display = 'none';
+    switchTab('flow');
   };
 
   // First run handling
@@ -3163,7 +5408,7 @@
   };
 
   function checkFirstRun() {
-    fetch('/api/state')
+    fetch('/api/state', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data && data.firstRun) {
@@ -3204,12 +5449,38 @@
     requestAnimationFrame(tickElapsed);
     connectSSE();
     fetchFullState();
-    initDragDrop();
     initPromptInputs();
     loadModels();
     loadRouting();
     loadBudget();
     checkAuthStatus();
+
+    // Init workflow mode selector
+    setWorkflowMode(_workflowMode);
+
+    // Panel resizer
+    const resizer = $('panelResizer');
+    if (resizer) {
+      let dragging = false;
+      resizer.addEventListener('mousedown', (e) => {
+        dragging = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const w = Math.max(280, Math.min(e.clientX, window.innerWidth - 400));
+        document.getElementById('app').style.setProperty('--left-width', w + 'px');
+      });
+      document.addEventListener('mouseup', () => {
+        if (dragging) {
+          dragging = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
