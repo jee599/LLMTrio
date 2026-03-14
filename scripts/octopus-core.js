@@ -92,8 +92,10 @@ function loadTimeout() {
   return (b && b.timeout_seconds) || 120; // default 2 minutes
 }
 
+// Intentionally returns {ok:true} — budget enforcement is unnecessary for
+// subscription-based models (Claude Max, Codex, Gemini). If per-token billing
+// is added later, implement actual limit checks here.
 function checkBudget() {
-  // Subscription models — no cost limits needed
   return { ok: true };
 }
 
@@ -135,6 +137,7 @@ function spawnAgent(agentId, content, taskInfo) {
     const [cmd, args] = cmdFn(content);
     const t0 = Date.now();
     let output = '', stderr = '';
+    const MAX_OUTPUT = 512 * 1024; // 512KB limit
     const resultFile = path.join(RESULTS_DIR, `${taskInfo.id}.json`);
 
     const writeResult = (status, extra = {}) => {
@@ -173,18 +176,27 @@ function spawnAgent(agentId, content, taskInfo) {
     // Timeout: kill process if it takes too long
     const timeoutSec = loadTimeout();
     let timedOut = false;
+    let killTimer = null;
     const timer = setTimeout(() => {
       timedOut = true;
       log(`[${agentId}] TIMEOUT after ${timeoutSec}s — killing "${taskInfo.name}"`);
       try { proc.kill('SIGTERM'); } catch {}
-      setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 3000);
+      killTimer = setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 3000);
     }, timeoutSec * 1000);
 
-    proc.stdout.on('data', (chunk) => { output += chunk.toString(); writeResult('running'); });
-    proc.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    proc.stdout.on('data', (chunk) => {
+      output += chunk.toString();
+      if (output.length > MAX_OUTPUT) output = output.slice(-MAX_OUTPUT);
+      writeResult('running');
+    });
+    proc.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+      if (stderr.length > MAX_OUTPUT) stderr = stderr.slice(-MAX_OUTPUT);
+    });
 
     proc.on('error', (err) => {
       clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
       log(`[${agentId}] error: ${err.message}`);
       const { tokens, elapsed } = writeResult('error', { error: err.message });
       activeProcs.delete(taskInfo.id);
@@ -193,6 +205,7 @@ function spawnAgent(agentId, content, taskInfo) {
 
     proc.on('close', (code) => {
       clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
       activeProcs.delete(taskInfo.id);
       const ok = code === 0 && !timedOut;
       const extra = timedOut ? { error: `Timed out after ${timeoutSec}s` }
@@ -287,7 +300,7 @@ async function runWorkflow(prompt, opts = {}) {
       task.elapsed = result.elapsed || 0;
       task.tokens = result.tokens || 0;
       if (result.error) task.error = result.error;
-      if (result.output) phaseOutputs.push(`[${task.name}]: ${result.output.slice(-1500)}`);
+      if (result.output) phaseOutputs.push(`[${task.name}]: ${result.output.slice(-500)}`);
       state.sessionTokens += task.tokens;
       saveState(state);
     }));

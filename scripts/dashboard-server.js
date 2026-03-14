@@ -112,7 +112,7 @@ function broadcast(eventType, data) {
 
 // --- fs.watch with debounce ---
 
-let stateWatcher = null;
+let statePollingInterval = null;
 
 function startWatcher() {
   const debounceTimers = new Map();
@@ -140,7 +140,7 @@ function startWatcher() {
   const stateFile = path.join(TRIO_DIR, 'state.json');
   let lastStateMtime = 0;
   let lastStateContent = '';
-  setInterval(() => {
+  statePollingInterval = setInterval(() => {
     try {
       const stat = fs.statSync(stateFile);
       const mtime = stat.mtimeMs;
@@ -280,20 +280,18 @@ function startExecutePhase() {
     console.log(`[dashboard-server] execute phase finished (exit ${code})`);
     // Sync stuck tasks
     try {
-      const st2 = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-      if (st2.tasks) {
+      const st2 = parseJsonFileSync(stateFile);
+      if (st2 && st2.tasks) {
         for (const task of st2.tasks) {
           if (task.status === 'working' || task.status === 'pending') {
             const rf = path.join(RESULTS_DIR, `${task.id}.json`);
-            try {
-              const result = JSON.parse(fs.readFileSync(rf, 'utf8'));
-              if (result.status === 'done' || result.status === 'error') {
-                task.status = result.status;
-                task.elapsed = result.elapsed || task.elapsed;
-                task.tokens = result.tokens || task.tokens;
-                if (result.error) task.error = result.error;
-              }
-            } catch {
+            const result = parseJsonFileSync(rf);
+            if (result && (result.status === 'done' || result.status === 'error')) {
+              task.status = result.status;
+              task.elapsed = result.elapsed || task.elapsed;
+              task.tokens = result.tokens || task.tokens;
+              if (result.error) task.error = result.error;
+            } else {
               task.status = 'error';
               task.error = code === 0 ? 'Process ended unexpectedly' : `Process crashed (exit ${code})`;
             }
@@ -465,23 +463,21 @@ function startWorkflow(prompt, opts = {}) {
     // Sync state.json with actual result files — fix any stuck 'working' tasks
     try {
       const stateFile = path.join(TRIO_DIR, 'state.json');
-      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      const st = parseJsonFileSync(stateFile);
+      if (!st) throw new Error('Failed to parse state.json after retries');
       let changed = false;
       if (st.tasks) {
         for (const task of st.tasks) {
           if (task.status === 'working' || task.status === 'pending') {
             const rf = path.join(RESULTS_DIR, `${task.id}.json`);
-            try {
-              const result = JSON.parse(fs.readFileSync(rf, 'utf8'));
-              if (result.status === 'done' || result.status === 'error') {
-                task.status = result.status;
-                task.elapsed = result.elapsed || task.elapsed;
-                task.tokens = result.tokens || task.tokens;
-                if (result.error) task.error = result.error;
-                changed = true;
-              }
-            } catch {
-              // No result file — process died before completing this task
+            const result = parseJsonFileSync(rf);
+            if (result && (result.status === 'done' || result.status === 'error')) {
+              task.status = result.status;
+              task.elapsed = result.elapsed || task.elapsed;
+              task.tokens = result.tokens || task.tokens;
+              if (result.error) task.error = result.error;
+              changed = true;
+            } else {
               task.status = 'error';
               task.error = code === 0 ? 'Process ended unexpectedly' : `Process crashed (exit ${code})`;
               changed = true;
@@ -633,10 +629,10 @@ function saveApiKey(req, res) {
 
 // --- POST /api/install-cli ---
 
-const INSTALL_COMMANDS = {
-  claude: 'npm install -g @anthropic-ai/claude-code',
-  codex: 'npm install -g @openai/codex',
-  gemini: 'npm install -g @google/gemini-cli',
+const INSTALL_PACKAGES = {
+  claude: '@anthropic-ai/claude-code',
+  codex: '@openai/codex',
+  gemini: '@google/gemini-cli',
 };
 
 function installCli(req, res) {
@@ -646,14 +642,14 @@ function installCli(req, res) {
     try {
       if (!body) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'Empty request body' })); return; }
       const { provider } = JSON.parse(body);
-      const cmd = INSTALL_COMMANDS[provider];
-      if (!cmd) {
+      const packageName = INSTALL_PACKAGES[provider];
+      if (!packageName) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid provider' }));
         return;
       }
       broadcast('setup-update', { provider, status: 'installing' });
-      const proc = spawn('sh', ['-c', cmd], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const proc = spawn('npm', ['install', '-g', packageName], { stdio: ['ignore', 'pipe', 'pipe'] });
       let stdout = '', stderr = '';
       proc.stdout.on('data', d => { stdout += d.toString(); });
       proc.stderr.on('data', d => { stderr += d.toString(); });
@@ -678,9 +674,9 @@ function installCli(req, res) {
 
 // --- POST /api/cli-login ---
 
-const LOGIN_COMMANDS = {
-  claude: 'claude login',
-  codex: 'codex login',
+const LOGIN_CLI = {
+  claude: 'claude',
+  codex: 'codex',
 };
 
 function cliLogin(req, res) {
@@ -689,15 +685,15 @@ function cliLogin(req, res) {
   req.on('end', () => {
     try {
       const { provider } = JSON.parse(body);
-      const cmd = LOGIN_COMMANDS[provider];
-      if (!cmd) {
+      const cliCmd = LOGIN_CLI[provider];
+      if (!cliCmd) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid provider.' }));
         return;
       }
       broadcast('setup-update', { provider, status: 'logging-in' });
       // Spawn login process — it opens browser for OAuth
-      const proc = spawn('sh', ['-c', cmd], {
+      const proc = spawn(cliCmd, ['login'], {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env, BROWSER: process.platform === 'darwin' ? 'open' : 'xdg-open' },
       });
@@ -773,9 +769,9 @@ function shutdown(signal) {
     try { watcher.close(); } catch {}
     watcher = null;
   }
-  if (stateWatcher) {
-    try { stateWatcher.close(); } catch {}
-    stateWatcher = null;
+  if (statePollingInterval) {
+    clearInterval(statePollingInterval);
+    statePollingInterval = null;
   }
 
   // Kill workflow process if running

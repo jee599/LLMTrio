@@ -917,7 +917,7 @@
     animation: fadeIn 0.15s;
   }
   .result-modal {
-    background: var(--surface); border: 1px solid var(--border);
+    background: var(--bg-secondary); border: 1px solid var(--border);
     border-radius: 12px; width: 90%; max-width: 800px; max-height: 80vh;
     display: flex; flex-direction: column; overflow: hidden;
   }
@@ -3286,6 +3286,7 @@
 
       // Card state class
       const card = $(`card-${agent}`);
+      if (!card) continue;
       card.classList.remove('is-working', 'is-done', 'is-error');
       if (a.status === 'working') card.classList.add('is-working');
       else if (a.status === 'done') card.classList.add('is-done');
@@ -3311,17 +3312,23 @@
 
       // Status badge
       const badge = $(`status-${agent}`);
-      badge.className = `status-badge ${a.status}`;
-      badge.textContent = STATUS_LABELS[a.status] || a.status;
+      if (badge) {
+        badge.className = `status-badge ${a.status}`;
+        badge.textContent = STATUS_LABELS[a.status] || a.status;
+      }
 
       // Current task bar
       const taskBar = $(`current-task-${agent}`);
-      if (a.task && a.status === 'working') {
-        taskBar.style.display = 'flex';
-        $(`task-${agent}`).textContent = a.task;
-      } else {
-        taskBar.style.display = a.task ? 'flex' : 'none';
-        $(`task-${agent}`).textContent = a.task || '—';
+      if (taskBar) {
+        if (a.task && a.status === 'working') {
+          taskBar.style.display = 'flex';
+          const taskEl = $(`task-${agent}`);
+          if (taskEl) taskEl.textContent = a.task;
+        } else {
+          taskBar.style.display = a.task ? 'flex' : 'none';
+          const taskEl = $(`task-${agent}`);
+          if (taskEl) taskEl.textContent = a.task || '—';
+        }
       }
 
       // Meta
@@ -3330,10 +3337,12 @@
 
       // Output (auto-scroll)
       const outputEl = $(`output-${agent}`);
-      const wasAtBottom = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
-      outputEl.textContent = a.output || t.waiting;
-      if (wasAtBottom) {
-        outputEl.scrollTop = outputEl.scrollHeight;
+      if (outputEl) {
+        const wasAtBottom = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
+        outputEl.textContent = a.output || t.waiting;
+        if (wasAtBottom) {
+          outputEl.scrollTop = outputEl.scrollHeight;
+        }
       }
 
       // Flow diagram — handled by renderFlowDiagram()
@@ -3408,17 +3417,17 @@
     let earliest = Infinity;
     for (const agent of ['claude', 'codex', 'gemini']) {
       const a = state.agents[agent];
+      const elapsedEl = $(`elapsed-${agent}`);
+      if (!elapsedEl) continue;
       if (a.status === 'working' && a.startedAt) {
         anyWorking = true;
         if (a.startedAt < earliest) earliest = a.startedAt;
         const secs = (now - a.startedAt) / 1000 + (a.totalElapsed || 0);
-        $(`elapsed-${agent}`).textContent = formatElapsed(secs);
+        elapsedEl.textContent = formatElapsed(secs);
       } else if (a.status === 'done' || a.status === 'error') {
-        // Show final elapsed (static, no counting)
-        $(`elapsed-${agent}`).textContent = formatElapsed(a.totalElapsed || a.elapsed || 0);
+        elapsedEl.textContent = formatElapsed(a.totalElapsed || a.elapsed || 0);
       } else {
-        // pending/idle — show nothing
-        $(`elapsed-${agent}`).textContent = '0.0s';
+        elapsedEl.textContent = '0.0s';
       }
     }
     // Update bottom bar elapsed
@@ -3475,7 +3484,8 @@
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    $('topbarClock').textContent = hh + ':' + mm + ':' + ss;
+    const clockEl = $('topbarClock');
+    if (clockEl) clockEl.textContent = hh + ':' + mm + ':' + ss;
   }
 
   // ── Update functions ──
@@ -3555,6 +3565,12 @@
   let reconnectTimer = null;
 
   function connectSSE() {
+    if (!window.EventSource) {
+      console.error('EventSource not supported by this browser');
+      const el = $('statusSummaryText');
+      if (el) el.textContent = 'Error: Your browser does not support Server-Sent Events. Please use a modern browser.';
+      return;
+    }
     if (eventSource) {
       eventSource.close();
     }
@@ -3569,6 +3585,7 @@
     eventSource.addEventListener('agent-update', (e) => {
       try {
         const data = JSON.parse(e.data);
+        if (!data || !data.agent) return;
         updateAgentCard(data.agent, data);
         // Sync result data back to tasks array so flow/results stay in sync
         if (data.taskId && tasks.length > 0) {
@@ -3690,7 +3707,7 @@
         return res.json();
       })
       .then((data) => applyFullState(data))
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   // ── Phase 2: Command API ──
@@ -3749,6 +3766,7 @@
     // Reset previous briefing and tasks immediately
     briefingData = null;
     briefingUnread = false;
+    debateMessages.length = 0;
     tasks = [];
     state.workflowTasks = [];
     state.phase = 'plan';
@@ -3866,6 +3884,7 @@
 
   function appendDebateBubble(data) {
     const timeline = $('debateTimeline');
+    if (!timeline) return;
     // Remove placeholder
     if (debateMessages.length === 0) {
       timeline.innerHTML = '';
@@ -3874,7 +3893,7 @@
     const bubble = document.createElement('div');
     const agent = data.agent || data.sender || 'user';
     bubble.className = 'debate-bubble ' + agent;
-    bubble.innerHTML = '<div class="debate-sender">' + agent + '</div>' + escapeHtml(data.content || data.message || '');
+    bubble.innerHTML = '<div class="debate-sender">' + escapeHtml(agent) + '</div>' + escapeHtml(data.content || data.message || '');
     timeline.appendChild(bubble);
     timeline.scrollTop = timeline.scrollHeight;
   }
@@ -3888,10 +3907,8 @@
     return div.innerHTML;
   }
 
-  // ── Task Board — Kanban Board ──
+  // ── Task tracking ──
   let tasks = [];
-  let kbFilter = '';
-  let draggedTaskId = null;
 
   const PHASE_META = {
     plan:    { num: 1, label: 'Plan',    ko: '계획', zh: '计划', ja: '計画', tasks: ['research', 'architecture', 'scaffold'] },
@@ -3905,210 +3922,8 @@
     return null;
   }
 
-  // Fixed kanban columns: To Do | In Progress | Done | Failed
-  const KB_COLUMNS = [
-    { key: 'todo',     label: { en: 'To Do',        ko: '대기',   zh: '待办',   ja: '待機'   }, dot: 'todo',     statuses: ['pending','approved'] },
-    { key: 'progress', label: { en: 'In Progress',  ko: '진행중', zh: '进行中', ja: '進行中' }, dot: 'progress', statuses: ['working'] },
-    { key: 'done',     label: { en: 'Done',         ko: '완료',   zh: '完成',   ja: '完了'   }, dot: 'done',     statuses: ['done'] },
-    { key: 'failed',   label: { en: 'Failed',       ko: '실패',   zh: '失败',   ja: '失敗'   }, dot: 'failed',   statuses: ['error','cancelled'] },
-  ];
-
-  function renderTaskBoard() {
-    const board = $('taskBoard');
-    if (!tasks.length) {
-      board.innerHTML = `
-        <div class="kb-empty">
-          <div class="kb-empty-icon">📋</div>
-          <div class="kb-empty-title">${tt('noTasksYet')}</div>
-          <div class="kb-empty-sub">${tt('enterPrompt')}</div>
-        </div>`;
-      return;
-    }
-
-    const filtered = kbFilter
-      ? tasks.filter(t => (tn(t.name)||'').toLowerCase().includes(kbFilter) || (t.name||'').toLowerCase().includes(kbFilter) || (t.agent||'').toLowerCase().includes(kbFilter) || (t.type||'').toLowerCase().includes(kbFilter))
-      : tasks;
-
-    const totalDone = filtered.filter(t => t.status === 'done').length;
-    const totalCount = filtered.length;
-    const pct = totalCount ? Math.round(totalDone / totalCount * 100) : 0;
-
-    let html = `<div class="kb-toolbar">
-      <input class="kb-search" type="text" placeholder="${tt('filter')}" value="${escapeHtml(kbFilter)}" oninput="kbSearch(this.value)" />
-      <div class="kb-spacer"></div>
-      <div class="kb-progress">
-        <div class="kb-progress-bar"><div class="kb-progress-fill" style="width:${pct}%"></div></div>
-        <span class="kb-progress-text">${totalDone}/${totalCount}</span>
-      </div>
-    </div>
-    <div class="kb-columns">`;
-
-    for (const col of KB_COLUMNS) {
-      const items = filtered.filter(t => col.statuses.includes(t.status || 'pending'));
-
-      html += `<div class="kb-col">
-        <div class="kb-col-head">
-          <div class="kb-col-dot ${col.dot}"></div>
-          <span class="kb-col-title">${col.label[lang] || col.label.en}</span>
-          <span class="kb-col-count">${items.length}</span>
-        </div>
-        <div class="kb-col-body" data-col="${col.key}"
-             ondragover="event.preventDefault();this.classList.add('drag-over')"
-             ondragleave="this.classList.remove('drag-over')"
-             ondrop="kbDrop(event,'${col.key}')">
-          ${items.length === 0
-            ? `<div class="kb-col-empty">${'—'}</div>`
-            : items.map(t => renderKbCard(t)).join('')}
-        </div>
-      </div>`;
-    }
-
-    html += '</div>';
-    board.innerHTML = html;
-  }
-
-  function renderKbCard(t) {
-    const phase = getPhaseForTask(t);
-    const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '';
-    const phaseClass = phase === 'plan' ? 'phase-plan' : 'phase-execute';
-    const isWorking = t.status === 'working';
-    const hasResult = t.status === 'done' || t.status === 'error';
-    const shortId = (t.id || '').replace('task-', '').slice(0, 8).toUpperCase();
-
-    return `<div class="kb-card ${isWorking ? 'is-working' : ''}" draggable="true"
-         data-task-id="${t.id}"
-         ondragstart="kbDragStart(event,'${t.id}')"
-         ondragend="kbDragEnd(event)"
-         onclick="openDetail('${t.id}')">
-      <div class="kb-card-head">
-        <span class="kb-card-key">${shortId}</span>
-        <span class="kb-card-title">${escapeHtml(tn(t.name) || t.id)}</span>
-      </div>
-      <div class="kb-card-labels">
-        ${phaseLabel ? `<span class="kb-label ${phaseClass}">${phaseLabel}</span>` : ''}
-        <span class="kb-label type-label">${escapeHtml(t.type || '')}</span>
-      </div>
-      <div class="kb-card-footer">
-        <div class="kb-avatar ${t.agent || ''}">${(t.agent||'?').charAt(0).toUpperCase()}</div>
-        <span class="kb-card-agent-name">${t.agent || ''}</span>
-        ${t.model ? `<span class="kb-card-model">${formatModel(t.model)}</span>` : ''}
-        ${t.error ? '<div class="kb-card-error-dot" title="' + escapeHtml(t.error) + '"></div>' : ''}
-        <span class="kb-card-time">${formatElapsed(t.elapsed)}</span>
-        ${hasResult ? `<button class="kb-card-result-btn" onclick="event.stopPropagation();viewResult('${t.id}')">${tt('result')}</button>` : ''}
-      </div>
-    </div>`;
-  }
-
-  // Drag & drop
-  window.kbDragStart = function(e, taskId) {
-    draggedTaskId = taskId;
-    e.target.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-  };
-  window.kbDragEnd = function(e) {
-    e.target.classList.remove('dragging');
-    draggedTaskId = null;
-    document.querySelectorAll('.kb-col-body').forEach(el => el.classList.remove('drag-over'));
-  };
-  window.kbDrop = function(e, colKey) {
-    e.preventDefault();
-    document.querySelectorAll('.kb-col-body').forEach(el => el.classList.remove('drag-over'));
-    if (!draggedTaskId) return;
-    const task = tasks.find(t => t.id === draggedTaskId);
-    if (!task) return;
-    // Map column key back to a status for command
-    const statusMap = { todo: 'pending', progress: 'working', done: 'done', failed: 'cancelled' };
-    const newStatus = statusMap[colKey];
-    if (newStatus === 'done') {
-      postCommand({ type: 'approve', taskId: draggedTaskId, target: task.agent });
-    } else if (newStatus === 'cancelled') {
-      postCommand({ type: 'cancel', target: task.agent });
-    }
-    draggedTaskId = null;
-  };
-
-  // Kanban interactions
-  window.kbSearch = function(val) {
-    kbFilter = val.toLowerCase();
-    renderTaskBoard();
-  };
-
-  window.kbSetGroup = function(group) {
-    kbGroupBy = group;
-    renderTaskBoard();
-  };
-
-  window.openDetail = function(taskId) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    const detail = $('kbDetail');
-    const phase = getPhaseForTask(task);
-    const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '—';
-    const statusMap = { done: tt('complete'), working: tt('inProgress'), error: tt('failed'), pending: tt('toDo') };
-    const statusLabel = statusMap[task.status] || task.status;
-
-    $('kbDetailTitle').textContent = tn(task.name) || task.id;
-
-    $('kbDetailBody').innerHTML = `
-      <div class="kb-detail-row">
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${tt('status')}</div>
-          <div class="kb-detail-value" style="font-weight:600;">${statusLabel}</div>
-        </div>
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${tt('type')}</div>
-          <div class="kb-detail-value" style="text-transform:capitalize;">${escapeHtml(task.type || '—')}</div>
-        </div>
-      </div>
-      <div class="kb-detail-row">
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${tt('agent')}</div>
-          <div class="kb-detail-value" style="display:flex;align-items:center;gap:8px;">
-            <div class="kb-avatar ${task.agent || ''}" style="width:26px;height:26px;font-size:11px;">${(task.agent||'?').charAt(0).toUpperCase()}</div>
-            ${task.agent || '—'}
-          </div>
-        </div>
-        <div class="kb-detail-field">
-          <div class="kb-detail-label">${tt('phase')}</div>
-          <div class="kb-detail-value">${phaseLabel}</div>
-        </div>
-      </div>
-      <div class="kb-detail-field">
-        <div class="kb-detail-label">${tt('elapsedTime')}</div>
-        <div class="kb-detail-value" style="font-family:var(--font-mono);">${formatElapsed(task.elapsed)}</div>
-      </div>
-      ${task.error ? `
-        <div class="kb-detail-field">
-          <div class="kb-detail-label" style="color:var(--accent-red);">${tt('errorLabel')}</div>
-          <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);">${escapeHtml(task.error)}</div>
-        </div>` : ''}
-      <div class="kb-detail-field">
-        <div class="kb-detail-label">${tt('output')}</div>
-        <div class="kb-detail-output" id="detail-output-${task.id}">${tt('loading')}</div>
-      </div>
-    `;
-
-    $('kbDetailActions').innerHTML = `
-      <button class="btn btn-approve" onclick="viewResult('${task.id}')" style="padding:8px 16px;">${tt('viewResult')}</button>
-      <div style="flex:1;"></div>
-      <button class="btn btn-cancel" onclick="postCommand({type:'cancel',target:'${task.agent}'})" style="padding:8px 16px;">${tt('cancel')}</button>
-    `;
-
-    detail.classList.add('open');
-
-    fetch('/api/result/' + task.id, { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const el = document.getElementById('detail-output-' + task.id);
-        if (el && data) el.textContent = data.output || data.error || (tt('noOutput'));
-        else if (el) el.textContent = tt('noResultFile');
-      })
-      .catch(() => {});
-  };
-
-  window.closeDetail = function() {
-    $('kbDetail').classList.remove('open');
-  };
+  // Kanban board removed — renderTaskBoard, openDetail, closeDetail,
+  // kbDragStart, kbDragEnd, kbDrop, kbSearch, kbSetGroup are no longer needed.
 
   // ── Results Tab ──
   const expandedResults = new Set();
@@ -4336,7 +4151,7 @@ ${rawOutput.slice(0, 4000)}`,
           el.textContent = tt('noResultFile');
         }
       })
-      .catch(() => { el.textContent = tt('loadFailed'); });
+      .catch(err => { console.error('fetch error:', err); el.textContent = tt('loadFailed'); });
   }
 
   window.copyResult = function(taskId) {
@@ -4368,15 +4183,34 @@ ${rawOutput.slice(0, 4000)}`,
         </div>`;
         document.body.appendChild(overlay);
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   };
 
   // ── Flow v4: Models on top, tasks flow down ──
   const flowExpandedTasks = new Set();
   const flowPrevStatuses = {}; // track previous status for animations
   let flowSelectedTaskId = null;
+  let _flowRenderPending = false;
+  let _flowLastRender = 0;
 
   function renderFlowDiagram() {
+    const now = Date.now();
+    if (now - _flowLastRender < 500) {
+      if (!_flowRenderPending) {
+        _flowRenderPending = true;
+        setTimeout(() => {
+          _flowRenderPending = false;
+          _flowLastRender = Date.now();
+          _renderFlowDiagramImpl();
+        }, 500 - (now - _flowLastRender));
+      }
+      return;
+    }
+    _flowLastRender = now;
+    _renderFlowDiagramImpl();
+  }
+
+  function _renderFlowDiagramImpl() {
     const container = $('flowV3Container');
     if (!container) return;
     const allTasks = state.workflowTasks || tasks;
@@ -4559,7 +4393,7 @@ ${rawOutput.slice(0, 4000)}`,
         el.textContent = summary.slice(0, 200) || (tt('noOutput'));
         el.dataset.loaded = '1';
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function fetchFlowFull(taskId) {
@@ -4575,7 +4409,7 @@ ${rawOutput.slice(0, 4000)}`,
         el.textContent = content;
         el.dataset.loaded = '1';
       })
-      .catch(() => { el.textContent = 'Failed'; });
+      .catch(err => { console.error('fetch error:', err); el.textContent = 'Failed'; });
   }
 
   window.toggleFlowTask = function(taskId) {
@@ -4600,9 +4434,12 @@ ${rawOutput.slice(0, 4000)}`,
     const phase = getPhaseForTask(task);
     const phaseLabel = phase ? (PHASE_META[phase][lang] || PHASE_META[phase].label) : '—';
 
-    document.getElementById('flowDetailTitle').textContent = tn(task.name) || task.id;
+    const detailTitle = document.getElementById('flowDetailTitle');
+    if (detailTitle) detailTitle.textContent = tn(task.name) || task.id;
+    const detailBody = document.getElementById('flowDetailBody');
+    if (!detailBody) return;
 
-    document.getElementById('flowDetailBody').innerHTML = `
+    detailBody.innerHTML = `
       <div class="kb-detail-row">
         <div class="kb-detail-field">
           <div class="kb-detail-label">${tt('status')}</div>
@@ -4663,7 +4500,7 @@ ${rawOutput.slice(0, 4000)}`,
           el.textContent = task.status === 'pending' ? tt('toDo') : task.status === 'working' ? tt('runningDot') : tt('noResultFile');
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   };
 
   window.closeFlowDetail = function() {
@@ -4891,7 +4728,7 @@ ${rawOutput.slice(0, 4000)}`,
           if (el && data) el.textContent = data.output || data.error || tt('noOutput');
           else if (el) el.textContent = tt('noOutput');
         })
-        .catch(() => {});
+        .catch(err => { console.error('fetch error:', err); });
     }
   }
 
@@ -5202,7 +5039,7 @@ ${rawOutput.slice(0, 4000)}`,
           }
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function loadRouting() {
@@ -5214,7 +5051,7 @@ ${rawOutput.slice(0, 4000)}`,
           renderRoutingRules();
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function loadBudget() {
@@ -5228,12 +5065,14 @@ ${rawOutput.slice(0, 4000)}`,
           $('valSession').textContent = '$' + (data.session_limit || 5);
           $('sliderDaily').value = data.daily_limit || 20;
           $('valDaily').textContent = '$' + (data.daily_limit || 20);
-          $('sliderOpus').value = data.opus_call_limit || 50;
-          $('valOpus').textContent = data.opus_call_limit || 50;
+          const sliderOpus = $('sliderOpus');
+          const valOpus = $('valOpus');
+          if (sliderOpus) sliderOpus.value = data.opus_call_limit || 50;
+          if (valOpus) valOpus.textContent = data.opus_call_limit || 50;
           queueRender();
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function renderModelGrid() {
@@ -5324,7 +5163,7 @@ ${rawOutput.slice(0, 4000)}`,
           switchTab('setup');
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function updateSetupCard(name, id, info) {
@@ -5472,7 +5311,7 @@ ${rawOutput.slice(0, 4000)}`,
             btn.style.opacity = '0.6';
             checkAuthStatus();
           }
-        }).catch(() => {});
+        }).catch(err => { console.error('fetch error:', err); });
       }, 2000);
     })
     .catch(() => {
@@ -5500,7 +5339,7 @@ ${rawOutput.slice(0, 4000)}`,
         checkAuthStatus();
       }
     })
-    .catch(() => {});
+    .catch(err => { console.error('fetch error:', err); });
   };
 
   window.closeSetup = function() {
@@ -5525,7 +5364,7 @@ ${rawOutput.slice(0, 4000)}`,
           showFirstRunOverlay(data);
         }
       })
-      .catch(() => {});
+      .catch(err => { console.error('fetch error:', err); });
   }
 
   function showFirstRunOverlay(data) {
