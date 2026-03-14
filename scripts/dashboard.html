@@ -62,7 +62,7 @@
   #app {
     display: grid;
     grid-template-rows: 56px 1fr auto;
-    grid-template-columns: var(--left-width, 400px) 1fr;
+    grid-template-columns: var(--left-width, 340px) 1fr;
     grid-template-areas:
       "topbar  topbar"
       "left    main"
@@ -2159,10 +2159,11 @@
     background: linear-gradient(to right, var(--bg-secondary), var(--bg-tertiary));
     display: flex;
     align-items: center;
-    padding: 0 24px;
-    gap: 24px;
+    padding: 0 16px;
+    gap: 12px;
     border-top: 1px solid var(--border);
-    min-height: 56px;
+    min-height: 48px;
+    overflow: hidden;
   }
 
   .cost-section {
@@ -2303,7 +2304,7 @@
   /* ── Responsive ── */
   @media (max-width: 1200px) {
     #app {
-      grid-template-columns: 340px 1fr;
+      grid-template-columns: 280px 1fr;
     }
   }
 
@@ -2805,7 +2806,7 @@
   </div>
 
   <!-- Floating expanded prompt (overlays above bottom bar) -->
-  <div id="promptExpanded" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);width:70%;max-width:900px;z-index:90;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;padding:20px 24px;box-shadow:0 -8px 40px rgba(0,0,0,0.5);backdrop-filter:blur(12px);">
+  <div id="promptExpanded" style="display:none;position:fixed;bottom:52px;left:50%;transform:translateX(-50%);width:80%;max-width:800px;z-index:90;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 -8px 40px rgba(0,0,0,0.5);backdrop-filter:blur(12px);">
     <!-- Mode selector -->
     <div id="modeSelector" style="display:flex;gap:4px;margin-bottom:12px;background:var(--bg-primary);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content;">
       <button id="modeApproval" onclick="setWorkflowMode('approval')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--accent-blue);color:#fff;font-weight:600;">승인 모드</button>
@@ -2825,37 +2826,24 @@
   </div>
 
   <!-- Bottom Bar -->
-  <div class="bottom-bar" style="gap:16px;">
+  <div class="bottom-bar">
 
-    <!-- Agent status dots -->
-    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span class="cost-dot claude"></span>
-        <span style="font-size:11px;color:var(--text-secondary);">Claude</span>
-        <span id="statusDotClaude" style="font-size:10px;color:var(--text-muted);">idle</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span class="cost-dot codex"></span>
-        <span style="font-size:11px;color:var(--text-secondary);">Codex</span>
-        <span id="statusDotCodex" style="font-size:10px;color:var(--text-muted);">idle</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span class="cost-dot gemini"></span>
-        <span style="font-size:11px;color:var(--text-secondary);">Gemini</span>
-        <span id="statusDotGemini" style="font-size:10px;color:var(--text-muted);">idle</span>
-      </div>
+    <!-- Agent status dots (compact) -->
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <span class="cost-dot claude" style="width:8px;height:8px;"></span><span id="statusDotClaude" style="font-size:10px;color:var(--text-muted);">idle</span>
+      <span class="cost-dot codex" style="width:8px;height:8px;margin-left:4px;"></span><span id="statusDotCodex" style="font-size:10px;color:var(--text-muted);">idle</span>
+      <span class="cost-dot gemini" style="width:8px;height:8px;margin-left:4px;"></span><span id="statusDotGemini" style="font-size:10px;color:var(--text-muted);">idle</span>
     </div>
 
     <!-- Prompt preview (center, clickable) -->
-    <div id="promptPreview" onclick="expandPrompt()" style="flex:1;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;min-height:36px;overflow:hidden;" onmouseover="this.style.borderColor='var(--accent-blue)';this.style.background='var(--bg-tertiary)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--bg-primary)'">
-      <span style="color:var(--accent-blue);font-size:14px;flex-shrink:0;">▶</span>
-      <span id="promptPreviewText" style="color:var(--text-muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Click to start a new workflow...</span>
+    <div id="promptPreview" onclick="expandPrompt()" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;overflow:hidden;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="color:var(--accent-blue);font-size:13px;flex-shrink:0;">▶</span>
+      <span id="promptPreviewText" style="color:var(--text-muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Click to start a new workflow...</span>
     </div>
 
     <!-- Elapsed time -->
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-      <span style="font-size:11px;color:var(--text-muted);">Elapsed</span>
-      <span id="elapsedTime" style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text-secondary);">00:00</span>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+      <span id="elapsedTime" style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-secondary);">00:00</span>
     </div>
 
   </div>
