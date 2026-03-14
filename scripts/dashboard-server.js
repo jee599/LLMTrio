@@ -209,6 +209,11 @@ function handleRequest(req, res) {
     serveJson(res, path.join(TRIO_DIR, 'budget.json'));
   } else if (req.method === 'GET' && pathname.startsWith('/api/result/')) {
     const taskId = pathname.split('/api/result/')[1];
+    if (!/^task-[a-z0-9]+$/.test(taskId)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid task ID' }));
+      return;
+    }
     serveJson(res, path.join(RESULTS_DIR, `${taskId}.json`));
   } else if (req.method === 'POST' && pathname === '/api/command') {
     receiveCommand(req, res);
@@ -542,7 +547,8 @@ function appendToPending(cmd) {
 
 function checkCli(cmd) {
   try {
-    const p = execSync(`which ${cmd}`, { stdio: 'pipe' }).toString().trim();
+    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+    const p = execSync(`${whichCmd} ${cmd}`, { stdio: 'pipe' }).toString().trim().split('\n')[0];
     let version = '';
     try { version = execSync(`${cmd} --version`, { stdio: 'pipe' }).toString().trim().split('\n')[0]; } catch {}
     return { installed: true, path: p, version };
@@ -695,7 +701,7 @@ function cliLogin(req, res) {
       // Spawn login process — it opens browser for OAuth
       const proc = spawn(cliCmd, ['login'], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, BROWSER: process.platform === 'darwin' ? 'open' : 'xdg-open' },
+        env: { ...process.env, BROWSER: process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open' },
       });
       let output = '';
       proc.stdout.on('data', d => { output += d.toString(); });

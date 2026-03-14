@@ -21,7 +21,7 @@ switch (arg) {
     });
     setTimeout(() => {
       const url = 'http://localhost:3333';
-      const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
+      const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
       try { execSync(`${cmd} ${url}`, { stdio: 'ignore' }); } catch {}
       console.log(`Dashboard is running at ${url}`);
     }, 1000);
@@ -68,7 +68,24 @@ switch (arg) {
     break;
   }
   case 'login': {
-    execSync(`bash "${path.join(ROOT, 'trio')}" login`, { stdio: 'inherit' });
+    // Inline login check (no bash dependency)
+    const agents = [
+      { name: 'Claude', cmd: 'claude', check: () => fs.existsSync(path.join(process.env.HOME || process.env.USERPROFILE || '', '.claude', '.credentials.json')) || !!process.env.ANTHROPIC_API_KEY },
+      { name: 'Codex', cmd: 'codex', check: () => !!process.env.OPENAI_API_KEY },
+      { name: 'Gemini', cmd: 'gemini', check: () => !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY },
+    ];
+    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+    console.log('=== LLMTrio — CLI Authentication Status ===\n');
+    for (const a of agents) {
+      try {
+        execSync(`${whichCmd} ${a.cmd}`, { stdio: 'pipe' });
+        const authed = a.check();
+        console.log(`${a.name} ... ${authed ? '✓ Authenticated' : '⚠ Installed, needs auth'}`);
+      } catch {
+        console.log(`${a.name} ... ✗ Not installed`);
+      }
+    }
+    console.log('\n=== Done ===');
     break;
   }
   default:

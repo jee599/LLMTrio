@@ -144,9 +144,12 @@ function spawnAgent(agentId, content, taskInfo) {
       const elapsed = Math.round((Date.now() - t0) / 1000);
       const tokens = estimateTokens(output.length);
       const lastLines = output.trim().split('\n').slice(-5);
+      const MAX_RESULT_OUTPUT = 16000;
+      const truncated = output.length > MAX_RESULT_OUTPUT;
+      const savedOutput = truncated ? `[... ${output.length - MAX_RESULT_OUTPUT} chars truncated ...]\n${output.slice(-MAX_RESULT_OUTPUT)}` : output;
       writeJsonAtomic(resultFile, {
         agent: agentId, status, task: taskInfo.name, taskId: taskInfo.id,
-        lastLines, elapsed, tokens, output: output.slice(-4000), ...extra,
+        lastLines, elapsed, tokens, output: savedOutput, truncated, ...extra,
       });
       return { tokens, elapsed };
     };
