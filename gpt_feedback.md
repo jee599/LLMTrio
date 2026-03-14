@@ -1,406 +1,473 @@
 # GPT Feedback for LLMTrio
 
-기준 시점: 2026-03-14  
-분석 기준: `main` 최신 상태 (`95c5603`)
+기준 시점: 2026-03-14 19:18 KST  
+분석 기준 커밋: `22e1834` (`fix: security, cross-platform, output limits, honest README`)
 
-## 한 줄 평가
+## 총평
 
-`LLMTrio`는 방향이 좋은 로컬 AI 코딩 오케스트레이터 알파다.  
-지금도 데모나 초기 사용자 테스트는 가능하지만, 실제 상품으로 팔려면 `실행 안정성`, `플랫폼 일관성`, `승인 플로우 품질`, `설정/권한 구조`를 먼저 정리해야 한다.
+최신 버전의 `LLMTrio`는 이전보다 훨씬 나아졌다.  
+지금은 "기획이 앞서는 데모" 단계는 넘었고, `좋은 알파` 또는 `베타 직전`에 가깝다.
 
-## 현재 제품성 평가
+냉정하게 말하면:
 
-- 시장성: 있음
-- 현재 완성도: 알파
-- 바로 판매 가능 여부: 아직 어려움
-- 가장 좋은 포지셔닝: `CLI 기반 AI 코딩 로컬 오케스트레이터 + 브라우저 대시보드`
+- 상품성은 있다.
+- 방향도 맞다.
+- 지금 바로 유료 제품으로 팔기에는 아직 이르다.
+- 이제 필요한 것은 기능 추가보다 `핵심 신뢰성 정리`다.
 
-이 제품의 핵심 가치는 다음이다.
+가장 적절한 포지셔닝은 여전히 이것이다.
 
-- Claude, Codex, Gemini 같은 AI 코딩 CLI를 한 워크플로 안에서 묶는다.
-- `plan -> execute -> review` 흐름을 한 화면에서 관리한다.
-- 브라우저에서 설치, 로그인, 실행, 승인, 결과 확인까지 연결한다.
-- 로컬 상태와 결과를 파일 기반으로 보관해 복구와 재실행이 쉽다.
+`CLI 기반 AI 코딩 로컬 오케스트레이터 + 브라우저 Setup / Approval / Results UI`
 
-이 포지셔닝은 맞다. 특히 `브라우저에서 설치하고 설정하는 경험`은 유지하는 것이 좋다. 다만 지금은 UI가 약속하는 수준과 엔진이 실제 보장하는 수준 사이에 차이가 있다.
+## 현재 점수
 
-## 유지해야 할 것
+- 포지셔닝: 8.5 / 10
+- 제품 구조의 일관성: 7.5 / 10
+- 실행 신뢰도: 6.5 / 10
+- 크로스플랫폼 준비도: 6 / 10
+- 유료화 준비도: 6.5 / 10
 
-다음은 제품 정체성이므로 유지하는 것이 좋다.
+한 줄로 요약하면:
 
-- 브라우저 기반 Setup 화면
-- 브라우저에서 CLI 설치와 로그인 유도
-- 로컬 퍼스트 구조
-- 승인 모드
-- 결과 패널과 요약 브리핑
-- 파일 기반 상태 저장
-- 다중 agent 병렬 실행 개념
+`팔릴 수 있는 아이디어`는 이미 갖췄다.  
+하지만 `돈 받고 써도 되는 안정성`은 아직 완성되지 않았다.
 
-특히 브라우저 설치 UX는 좋은 방향이다.  
-이 제품은 CLI 사용자를 위한 도구지만, 실제 사용 경험은 브라우저 대시보드에서 완성되는 구조가 더 낫다.
+## 이번 최신 버전에서 실제로 좋아진 점
 
-## 빼거나 축소해야 할 것
+이번 최신 커밋은 이전 피드백을 상당 부분 반영했다. 이건 명확히 긍정적이다.
 
-현재 단계에서 복잡도만 높이고 신뢰도를 떨어뜨리는 요소들은 과감히 줄이는 것이 좋다.
+### 1. 죽은 기능을 걷어냈다
 
-- 가짜 비용 추적
-- 최신 모델 자동 조사 기능
-- 토론 탭
-- 과한 칸반 보드 상호작용
-- 실제 적용되지 않는 모델 라우팅 과장 표현
-- 아직 안정화되지 않은 세부 제어 UI
+좋은 결정이다.
 
-이 기능들은 언젠가 다시 넣을 수 있다. 하지만 v1에서는 핵심 가치가 아니다.
+- Debate 제거
+- 가짜 비용 / 예산 UI 축소
+- display-only 모델 관리 UI 축소
+- README 과장 문구 일부 제거
 
-## 실제 상품화를 막는 핵심 문제
+이 덕분에 제품이 "있어 보이기 위한 기능 묶음"에서 "실제로 동작하는 흐름" 쪽으로 이동했다.
 
-### 1. 런처와 플랫폼 의존성이 일관되지 않음
+### 2. 문서가 더 솔직해졌다
 
-현재 Node 엔트리 포인트가 여전히 `bash`에 의존한다.  
-그래서 Windows에서 일부 명령은 바로 깨진다.
+README가 전보다 현실과 가까워졌다.
 
-문제:
+- 라우팅이 실제 CLI 모델 선택이 아니라는 점을 명시
+- Tasks / Kanban 설명 제거
+- Debate 로드맵 제거
+- 알파 상태 명시
+- 플랫폼 요구사항 명시
 
-- `bin/llmtrio.js`의 `login`, `start`가 `bash` 호출에 묶여 있음
-- 일부 상태 체크가 `which`를 사용함
-- `command-watcher.sh`, `model-checker.sh`가 셸 유틸리티에 의존함
+이건 신뢰도에 중요하다.
 
-상품화 관점 리스크:
+### 3. 보안 리스크 하나를 실제로 줄였다
 
-- npm 설치 후 바로 안 되는 경험이 발생함
-- README와 실제 요구사항이 어긋남
-- 지원 플랫폼 설명이 모호해짐
+`/api/result/:taskId`에 task ID 검증이 추가됐다.
 
-수정 방향:
+- path traversal 위험 감소
+- 최소한의 입력 검증 시작
 
-- 핵심 실행 경로를 Node 단일 런타임으로 통합
-- `command-watcher.sh` 기능은 `dashboard-server.js` 또는 별도 `command-worker.js`로 이전
-- `model-checker.sh`도 Node 스크립트로 치환하거나 v1에서 제거
-- CLI 설치 여부 확인은 `where`/`which` 분기 대신 Node 기반 탐지로 통일
+작지만 의미 있는 개선이다.
 
-권장 구현:
+### 4. Windows 대응이 일부 개선됐다
 
-- `lib/process.js`: spawn, kill, timeout, pid 관리 공통화
-- `lib/platform.js`: CLI 탐지, 브라우저 열기, npm 실행 공통화
-- `scripts/command-watcher.sh` 제거
-- `scripts/model-checker.sh` 제거 또는 `scripts/model-checker.js`로 교체
+이전보다 확실히 좋아졌다.
 
-### 2. 승인 모드의 핵심 가치가 아직 약함
+- `bin/llmtrio.js login`이 더 이상 `bash`에 직접 의존하지 않음
+- CLI 탐지에서 Windows는 `where` 사용
+- 브라우저 열기에서 Windows는 `start` 사용
 
-승인 모드는 제품의 중요한 차별점인데, 현재 `plan` 결과가 `execute`에 안정적으로 이어지는 구조가 약하다.
+실제로 `node bin\llmtrio.js login`은 이제 동작한다.
 
-문제:
+### 5. 출력 저장 한도가 개선됐다
 
-- `plan` 결과는 메모리 기반 연결에 가깝다
-- 승인 후 `execute`를 새 프로세스로 재개할 때 컨텍스트 전달이 약하다
-- 사용자가 승인한 이유나 선택 사항이 다음 단계에 반영되지 않는다
+결과 저장 한도가 4000자에서 16000자로 늘고, truncation 표시도 들어갔다.
 
-상품화 관점 리스크:
+이건 결과 비교 기능을 나중에 붙일 때도 도움이 된다.
 
-- 승인 모드가 단지 일시정지 UI처럼 보일 수 있음
-- 자동 모드와 승인 모드의 결과 품질이 달라질 수 있음
+### 6. plan summary 저장 방향은 맞다
 
-수정 방향:
+`plan-summary.json`을 도입한 것은 정확한 방향이다.  
+Approval mode에서 필요한 핵심 자산은 바로 이 `중간 산출물의 명시적 저장`이다.
 
-- `plan` 종료 시 phase summary를 파일로 저장
-- 승인 시 선택한 방향, 체크한 옵션, 승인 코멘트를 함께 저장
-- `execute` 시작 시 이 요약 파일을 읽어 프롬프트에 주입
+## 냉정한 결론
 
-권장 구현:
+이번 버전은 "무엇을 버려야 하는지"를 이해하기 시작한 버전이다.  
+이건 제품화에 매우 중요하다.
 
-- `.trio/phase-plan-summary.json`
-- `.trio/workflow-context.json`
-- `dashboard-server.js`에서 승인 시 사용자 승인 코멘트까지 저장
-- `octopus-core.js`에서 `--context-file` 또는 동일 효과의 로드 경로 지원
+하지만 아직 `P0`가 끝난 것은 아니다.
 
-### 3. 모델 라우팅이 실제 제품 약속만큼 강하지 않음
+지금 시점에서 해야 할 일은:
 
-현재 라우팅은 UI에서 바꿀 수 있지만, 실제 실행 계층에서는 제한적이다.
+- 새로운 기능을 더 넣는 것
+- 더 화려한 UI를 붙이는 것
+- 더 많은 탭을 만드는 것
 
-문제:
+이 아니다.
 
-- task type에 따른 실제 모델 선택 로직이 약함
-- agent별 기본 실행 명령은 고정
-- UI는 `routing.json` 수정이 강력한 기능처럼 보이지만 실제 반영 폭이 좁음
+지금 해야 할 일은:
 
-상품화 관점 리스크:
+- 현재 약속한 핵심 흐름이 정말 끝까지 맞게 동작하는지
+- Windows / macOS / Linux에서 같은 기대를 줄 수 있는지
+- Approval / Setup / Stop / Retry가 믿을 수 있는지
 
-- 사용자가 “왜 모델을 바꿨는데 결과가 달라지지 않지?”를 느낄 수 있음
-- 라우팅 기능에 대한 신뢰가 떨어짐
+이 세 가지를 마무리하는 것이다.
 
-수정 방향:
+## 반드시 더 수정해야 하는 것
 
-- `task type -> model id -> cli invocation` 흐름을 엔진 하나에서 관리
-- CLI가 model 선택 옵션을 지원하면 실제로 전달
-- CLI가 model 선택을 지원하지 않으면 UI 문구를 `권장 모델` 수준으로 낮춤
+아래는 `상품화 전 필수 수정사항`이다.
 
-권장 구현:
+### P0-1. plan -> execute context handoff가 의도대로 아직 동작하지 않는다
 
-- `config/models.json` 또는 `.trio/models.json`에 `provider`, `agent`, `cliArgs` 구조 정의
-- `resolveAgent()`와 `resolveModelId()`를 분리하지 말고 `resolveExecutionTarget()`로 합침
-- 결과 JSON에 `requestedModel`과 `actualModel`을 모두 기록
+이건 현재 가장 중요한 문제다.
 
-### 4. task 제어 모델이 상품 수준으로 정리되지 않음
+겉으로는 `plan-summary.json`이 추가되었지만, 실제 코드 순서상 `execute` 단계 프롬프트를 만들기 전에 이 컨텍스트를 주입하지 못하고 있다.
 
-현재 UI는 task 단위 제어처럼 보이지만 실제 내부 동작은 agent 단위, workflow 단위로 섞여 있다.
+현재 구조:
 
-문제:
+- `runWorkflow()` 시작 시 `prevPhaseOutputs = ''`
+- Approval mode에서는 `--phase execute`로 재시작
+- `execute` phase의 task prompt를 만들 때 `prevPhaseOutputs`가 비어 있음
+- 그 뒤에야 `plan-summary.json`을 읽어 `prevPhaseOutputs`를 채움
 
-- cancel/approve/reassign의 의미가 UI와 구현에서 다를 수 있음
-- task 단위 재시도와 부분 재실행 흐름이 아직 약함
+즉, 컨텍스트를 `읽긴 읽는데 너무 늦게 읽는다`.
 
-상품화 관점 리스크:
+이 문제는 제품 핵심을 직접 훼손한다.
 
-- 사용자가 조작 결과를 예측하기 어렵다
-- “실행 관리 도구”의 기본 신뢰가 떨어진다
+- Approval mode의 품질이 auto mode보다 떨어질 수 있다
+- 사용자는 "왜 plan을 승인했는데 execute가 plan을 안 본 것 같지?"를 느낀다
+- 제품의 가장 중요한 차별점이 약해진다
 
 수정 방향:
 
-- `taskId`를 1급 식별자로 승격
-- 프로세스 관리도 task 기준으로 통일
-- workflow cancel과 task cancel을 분리
+- `onlyPhase === 'execute'`인 경우 loop 전에 `plan-summary.json`을 먼저 읽어 `prevPhaseOutputs`를 채운다
+- 또는 phase loop 안에서 `execute` task를 생성하기 전에 context를 주입한다
 
 권장 구현:
 
-- `.trio/process-index.json`
-- `activeProcs: Map<taskId, childProcess>`
-- `/api/command`에서 `workflow` 레벨 명령과 `task` 레벨 명령을 분리
+```js
+let prevPhaseOutputs = '';
 
-### 5. 설정 스키마가 일관되지 않음
-
-예산, timeout, workflow 설정 키가 읽는 쪽과 저장하는 쪽에서 다르다.
-
-문제:
-
-- `session_limit`을 읽으면서 저장은 `max_turns_session`으로 함
-- `timeout_seconds`와 `timeout_minutes`가 혼재
-
-상품화 관점 리스크:
-
-- 저장 버튼이 눌려도 실제 실행엔 반영되지 않는 상황이 생김
-- 사용자가 제품을 못 믿게 됨
-
-수정 방향:
-
-- 설정 스키마를 하나로 통일
-- 읽기/쓰기 모두 단일 validator를 거치게 함
-
-권장 구현:
-
-- `config/schema-budget.json` 또는 Node validator 함수
-- v1 스키마 예시:
-
-```json
-{
-  "workflow": {
-    "plan": {
-      "research": false,
-      "architecture": true,
-      "scaffold": true
-    },
-    "execute": {
-      "implementation": true,
-      "code-review": true,
-      "documentation": true
-    }
-  },
-  "timeout_seconds": 120,
-  "session_limit": 5,
-  "daily_limit": 20,
-  "warn_at": 0.8
+if (onlyPhase === 'execute') {
+  const planSummary = readJson(path.join(TRIO_DIR, 'plan-summary.json'));
+  if (planSummary) {
+    prevPhaseOutputs = Object.entries(planSummary)
+      .filter(([_, v]) => v.status === 'done' && v.output)
+      .map(([name, v]) => `[${name}]: ${v.output.slice(-2000)}`)
+      .join('\n\n');
+  }
 }
 ```
 
-### 6. 보안과 권한 경계가 약함
+추가 권장:
 
-브라우저에서 설치, 로그인, 실행, 키 저장까지 다루는 만큼 로컬 서버 권한 경계가 중요하다.
+- approval 시 사용자 코멘트도 `.trio/workflow-context.json`에 저장
+- execute prompt에 plan summary + approval note를 같이 주입
 
-문제:
+관련 파일:
 
-- 인증 없는 local HTTP API
-- API key 저장과 명령 실행이 가까이 붙어 있음
-- 결과 파일 접근 경로 검증이 약함
+- `scripts/octopus-core.js`
+- `scripts/dashboard-server.js`
 
-상품화 관점 리스크:
+### P0-2. Windows에서 CLI 설치가 아직 깨진다
 
-- 로컬 앱이지만 보안 신뢰도가 낮아짐
-- 회사 환경이나 보수적인 사용자층에서 채택이 어려워짐
+이건 실제 검증 결과가 있다.
+
+현재 `dashboard-server.js`는 CLI 설치 시 다음처럼 동작한다.
+
+- `spawn('npm', ['install', '-g', packageName])`
+
+하지만 Windows에서는 이 호출이 `ENOENT`로 실패한다.  
+실제로 이 환경에서 `spawn('npm', ['--version'])`도 실패했다.
+
+즉, Setup 탭의 핵심 UX 중 하나가 Windows에서 아직 완성되지 않았다.
+
+이 문제는 상품화에 치명적이다.
+
+- 브라우저에서 설치된다고 해놓고 실제로는 안 된다
+- Setup UX를 강점으로 내세울 수 없다
 
 수정 방향:
 
-- 세션 토큰 또는 로컬 nonce 추가
-- 민감 엔드포인트는 CSRF 비슷한 방어 추가
-- 파일 경로는 whitelist 방식으로 제한
+- Windows에서는 `npm.cmd`를 직접 호출
+- 또는 `cmd /c npm ...` 패턴으로 실행
 
 권장 구현:
 
-- 서버 시작 시 임시 세션 토큰 생성
-- 브라우저는 최초 HTML 로드 시 토큰을 주입받고 이후 POST에 포함
-- `/api/result/:taskId`는 `taskId`를 정규식으로 검증
+```js
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const proc = spawn(npmCmd, ['install', '-g', packageName], ...);
+```
 
-### 7. README와 실제 지원 범위가 맞아야 함
+대안:
 
-지금은 문서가 제품 기대치를 올리는 편이다.
+```js
+const proc = process.platform === 'win32'
+  ? spawn('cmd', ['/c', 'npm', 'install', '-g', packageName], ...)
+  : spawn('npm', ['install', '-g', packageName], ...);
+```
 
-문제:
+관련 파일:
 
-- `Node.js만 있으면 됨`처럼 읽히는 표현
-- 라우팅, 비용, 다중 agent 관제가 다 완성된 것처럼 보이는 표현
+- `scripts/dashboard-server.js`
+
+### P0-3. PID 저장 방식이 아직 잘못됐다
+
+현재 PID 파일은 `writeJsonAtomic()`으로 저장된다.  
+즉 JSON 문자열 형식으로 저장될 가능성이 높다.
+
+반면 읽는 쪽은 `parseInt(fs.readFileSync(...))`를 사용한다.
+
+이건 구조적으로 잘못된 조합이다.
+
+가능한 문제:
+
+- PID를 제대로 읽지 못함
+- `stop`이 실패함
+- 오래된 프로세스가 남음
+- 포트 충돌이 생김
+
+이 문제는 크로스플랫폼 이슈와 결합하면 더 위험해진다.
 
 수정 방향:
 
-- 지원 범위 명확화
-- 알파 단계 표시
-- 실제 검증된 플랫폼과 미검증 플랫폼을 구분
+- PID 파일은 JSON이 아니라 plain text 숫자만 저장
+- PID read / write helper를 따로 만든다
 
-## 실제 상품화를 위한 우선순위 수정안
+권장 구현:
 
-### P0. 판매 전 반드시 끝내야 하는 것
+```js
+function writePidFile(file, pid) {
+  fs.writeFileSync(file + '.tmp', String(pid), 'utf8');
+  fs.renameSync(file + '.tmp', file);
+}
 
-예상 기간: 1~2주
+function readPidFile(file) {
+  return parseInt(fs.readFileSync(file, 'utf8').trim(), 10);
+}
+```
 
-1. Node 단일 런타임으로 실행 경로 통합
-2. 브라우저 Setup 흐름을 Windows/macOS/Linux에서 동일하게 동작하게 정리
-3. 승인 모드의 context handoff 구현
-4. 설정 스키마 통일
-5. PID 및 프로세스 lifecycle 정리
+관련 파일:
 
-완료 기준:
+- `scripts/octopus-core.js`
+- `scripts/dashboard-server.js`
+- `bin/llmtrio.js`
+- `trio`
 
-- `npx llmtrio` 후 Setup, Login, Start, Stop이 주요 OS에서 동작
-- 승인 후 execute 결과 품질이 auto mode와 큰 차이 없이 유지
-- 설정 변경이 실제 실행에 반영됨
+### P0-4. command queue는 거의 죽은 상태인데 코드와 파일은 남아 있다
 
-### P1. 알파를 베타로 끌어올리는 것
+이건 구조 debt다.
 
-예상 기간: 1주
+현재 상태:
 
-1. 결과물 비교와 최종 선택 기능
-2. 실패 task만 재실행
-3. workflow 템플릿
-4. repo-aware 정보 표시
+- `command-watcher.sh`는 사실상 빠졌다
+- 그런데 `/api/command`는 여전히 `pending.json`에 append 한다
+- `sendPrompt()` 같은 함수는 여전히 queue 기반이다
+- single-agent prompt UI도 일부 남아 있다
 
-완료 기준:
+즉, `command queue`가 제품의 핵심 구조가 아니게 되었는데 아직 코드에는 남아 있다.
 
-- 병렬 실행 결과를 사람이 쉽게 비교하고 선택 가능
-- 하나 실패했다고 전체를 다시 돌리지 않아도 됨
-- 개발자가 실제 프로젝트에 붙여서 반복 사용 가능
+이 문제는 당장 앱을 터뜨리진 않더라도 제품 신뢰도와 유지보수성을 깎는다.
 
-### P2. 상품 차별화를 만드는 것
+부작용:
 
-예상 기간: 1~2주
+- pending.json이 의미 없이 쌓일 수 있다
+- 어떤 명령은 즉시 처리되고 어떤 명령은 파일에만 쌓인다
+- 코드 읽는 사람도 동작 경로를 헷갈린다
 
-1. Git 변경 요약과 diff 기반 비교
-2. 승인 코멘트 기반 재실행
-3. 팀용 공유 preset
-4. 간단한 session restore
+수정 방향:
 
-## 추가하면 좋은 핵심 기능
+- `pending.json` 기반 큐를 완전히 제거하거나
+- 정말 필요하다면 Node worker로 정식 복원한다
+
+권장 판단:
+
+- v1에서는 제거하는 것이 낫다
+- `/api/command`는 직접 처리 가능한 명령만 받게 단순화한다
+
+권장 정리:
+
+- `commands/` 런타임 큐 삭제
+- `appendToPending()` 제거
+- single-agent prompt는 `/api/run-agent`로 직접 연결하거나 UI에서 제거
+
+관련 파일:
+
+- `scripts/dashboard-server.js`
+- `scripts/dashboard.html`
+- `commands/`
+
+### P0-5. 브라우저 권한 경계는 아직 약하다
+
+taskId 검증은 좋아졌지만, 전체 보안 모델은 여전히 약하다.
+
+현재는 다음 엔드포인트들이 로컬에서 직접 중요한 작업을 수행한다.
+
+- `/api/save-key`
+- `/api/install-cli`
+- `/api/cli-login`
+- `/api/run-agent`
+
+이 구조는 로컬 앱 알파에서는 허용 가능하지만, 상품화 관점에서는 최소한의 세션 보호가 필요하다.
+
+위험:
+
+- 로컬 브라우저 세션을 믿는 구조가 너무 단순하다
+- 향후 팀 환경이나 기업 환경에서 신뢰를 얻기 어렵다
+
+수정 방향:
+
+- 서버 시작 시 임시 세션 토큰 생성
+- HTML 렌더 시 토큰 주입
+- 민감 POST 요청은 토큰 검사
+
+추가 권장:
+
+- setup 관련 명령은 explicit confirm step 추가
+- key 저장 시 provider별 validation 추가
+
+관련 파일:
+
+- `scripts/dashboard-server.js`
+- `scripts/dashboard.html`
+
+## 중요하지만 P0 다음에 처리해도 되는 것
+
+### P1-1. 라우팅은 아직 "표시용에 가까운 설정"이다
+
+README는 이제 더 솔직해졌지만, 제품 기능 자체는 아직 약하다.
+
+현재 라우팅은:
+
+- task type -> agent 매핑에 가깝다
+- 실제 CLI별 모델 선택 옵션을 강제하지 않는다
+
+즉, `routing.json`은 "오케스트레이션 설정"이지 "모델 선택기"가 아니다.
+
+이건 당장 막아야 할 버그는 아니지만, 앞으로 상품 설명과 맞추려면 다음 중 하나를 택해야 한다.
+
+- 이 기능을 agent routing으로 명확히 재정의
+- 각 CLI가 지원하는 model 옵션까지 실제로 연결
+
+v1 권장:
+
+- 이름을 `routing`보다 `agent assignment`에 가깝게 표현
+- UI에서도 "실제 모델 강제 선택"처럼 보이지 않게 유지
+
+### P1-2. 인증 상태 판정이 완전히 일관되지는 않다
+
+예를 들어:
+
+- `bin/llmtrio.js login`은 간단한 환경변수/파일 기준
+- `dashboard-server.js`도 유사하지만 세부 기준은 다르다
+
+이런 차이는 나중에 사용자를 헷갈리게 만든다.
+
+수정 방향:
+
+- `checkAuthStatus()` 로직을 공용 모듈로 분리
+- CLI / dashboard / doctor가 같은 기준을 사용
+
+### P1-3. README는 좋아졌지만 아직 완전히 정리되지는 않았다
+
+좋아진 건 맞다. 하지만 아직 shell script와 WSL 의존, clone-and-run 경로에 대한 설명이 더 명확해질 필요가 있다.
+
+필요한 보완:
+
+- `npx llmtrio`를 메인 실행 경로로 올리기
+- `./trio`는 Unix shell 경로라고 분명히 쓰기
+- Windows native 지원과 WSL 권장을 구분해서 쓰기
+
+### P1-4. dashboard.html에 정리되지 않은 흔적이 아직 많다
+
+최신 버전에서도 cost, model, first-run overlay 관련 잔여 구조가 보인다.
+
+이건 치명적 버그는 아니지만:
+
+- 코드가 불필요하게 크다
+- 나중에 기능을 다시 오해하게 만든다
+- UI 상태 관리가 복잡해진다
+
+권장:
+
+- 실제 쓰는 탭과 실제 쓰는 상태만 남긴다
+- 사용하지 않는 번역 키도 정리한다
+
+## 지금 추가하면 좋은 기능
+
+아래 기능은 P0를 정리한 다음부터 진짜 상품성을 올린다.
 
 ### 1. 결과물 비교와 최종 선택
 
-이건 실제 상품성을 크게 올린다.
+이건 가장 중요한 차기 기능이다.
 
-개념:
+목표:
 
-- 같은 요청을 여러 agent가 수행
-- 각 결과를 같은 포맷으로 비교
-- 사용자가 하나를 채택하거나 조합
+- 여러 agent 결과를 같은 포맷으로 비교
+- 사람이 하나를 선택
+- 선택 결과를 다음 액션에 연결
 
-화면 구조 제안:
+필요 요소:
 
-- 상단: workflow prompt
-- 중단: agent별 결과 카드
-- 각 카드: 요약, 에러, 소요 시간, 모델, 변경 파일, diff, 원문 output
-- 하단 액션:
-  - `이 결과 채택`
-  - `이 결과를 베이스로 다시 실행`
-  - `A+B 비교`
-  - `최종 요약 생성`
+- 결과 카드 비교
+- 요약 / diff / 위험요소 / 실행 시간 표시
+- `이 결과 채택`
+- `이 결과를 기준으로 재실행`
 
-필요 구현:
+이 기능이 들어가야 "오케스트레이터"의 의미가 강해진다.
 
-- 결과 JSON에 `summary`, `filesTouched`, `diffSnippet`, `riskNotes` 필드 추가
-- 승인 단계와 별도로 `selection` 상태 저장
-- `.trio/final-selection.json` 생성
+### 2. 실패 task만 재실행
 
-### 2. Repo-aware 실행
+실무 사용성을 크게 높인다.
 
-현재는 프롬프트 중심이다. 상품이 되려면 실제 저장소 문맥을 알아야 한다.
+현재는 workflow 단위 사고방식이 강하다.  
+상품이 되려면 `부분 복구`가 가능해야 한다.
 
-추가 요소:
+필요 요소:
 
-- 현재 git branch
-- 변경된 파일
-- 최근 커밋
-- uncommitted changes 감지
-- 실행 대상 폴더 선택
+- task 상태 기준 재실행
+- 이전 성공 결과 재사용
+- 실패 원인과 재실행 옵션 표시
 
-필요 구현:
+### 3. repo-aware context
 
-- `git status --porcelain`
-- `git diff --stat`
-- `git branch --show-current`
-- dashboard에 현재 repo 상태 표시
+지금은 prompt 중심이 강하다.  
+상품이 되려면 repository 문맥을 더 이해해야 한다.
 
-### 3. Doctor / Environment Check
+추가 추천:
 
-브라우저 설치 UX를 살리려면 첫 진입이 강해야 한다.
+- 현재 branch 표시
+- modified files 표시
+- git diff stat 표시
+- clean / dirty 상태 표시
 
-추가 요소:
+### 4. doctor / environment check
 
-- Node 버전 확인
-- npm 설치 가능 여부
+Setup를 강점으로 가져가려면 이 기능이 꼭 필요하다.
+
+필요 요소:
+
+- Node 버전
+- npm install 가능 여부
 - CLI 설치 여부
-- 로그인 여부
-- write permission 확인
+- 로그인 상태
+- write permission
 - 브라우저 열기 가능 여부
 
-권장 UX:
+이건 초반 사용자 이탈을 줄이는 데 효과가 크다.
 
-- Setup 첫 화면에서 `Ready`, `Needs install`, `Needs login`, `Unsupported shell` 표시
-- 한 번에 수정 가능한 액션 버튼 제공
+## 지금은 넣지 않는 게 좋은 기능
 
-### 4. 부분 재실행과 Resume
+아래는 지금 다시 넣으면 오히려 흐름이 흐려질 가능성이 크다.
 
-실전에서 중요하다.
-
-필요 기능:
-
-- 실패 task만 재실행
-- 마지막 workflow 재개
-- 승인 대기 상태 복구
-
-저장 파일 제안:
-
-- `.trio/last-workflow.json`
-- `.trio/workflow-context.json`
-- `.trio/selections.json`
-
-## 보완하면 좋은 기능
-
-- 결과 복사 외에 diff 복사
-- agent별 raw output 토글
-- 실행 로그 다운로드
-- prompt template 저장
-- 자주 쓰는 routing preset
-- 프로젝트별 설정 프로필
-
-## v1에서 권장하지 않는 기능
-
-다음은 상품 초기 버전에서 우선순위를 낮추는 것이 좋다.
-
-- debate 모드 확대
-- 복잡한 drag-and-drop board
+- Debate
+- 복잡한 Kanban
 - 실시간 비용 계산
-- 자동 최신 모델 추천
-- agent 간 자동 병합
+- 최신 모델 자동 조사
+- 자동 병합
 
-이 기능들은 재미있지만, 제품의 첫 구매 이유가 되지는 않는다.
+지금은 `작고 강한 제품`으로 가는 게 맞다.
 
 ## 권장 제품 구조
-
-가장 좋은 구조는 다음과 같다.
 
 ### CLI Core
 
@@ -412,71 +479,86 @@
 
 ### Local Backend
 
-- browser dashboard 제공
-- setup / install / login API
-- 실행 제어 API
-- 결과 조회 API
+- setup / install / login
+- workflow 제어
+- 결과 조회
+- approval / retry / selection API
 
 ### Browser Dashboard
 
-- setup
-- workflow 시작
-- approval
-- 결과 비교
-- 최종 선택
+- Setup
+- Run
+- Approval
+- Results
+- Compare / Select
 
-즉, 제품 포지셔닝은 여전히 맞다.
+이 구조는 지금 포지셔닝과 잘 맞는다.
 
-`CLI 기반 AI 코딩 로컬 오케스트레이터`가 본체이고,  
-브라우저는 `설치 + 관제 + 승인 + 비교` 경험을 담당해야 한다.
-
-## 4주 상품화 로드맵 제안
+## 구현 우선순위
 
 ### 1주차
 
-- Node 단일 런타임 통합
-- command watcher 제거
-- platform detection 정리
-- 설정 스키마 통일
+- execute context handoff 수정
+- Windows npm install 경로 수정
+- PID 파일 저장 방식 수정
+- pending queue 제거
 
 ### 2주차
 
-- approval context handoff 구현
-- PID/lifecycle 정리
-- Windows/macOS/Linux smoke test
-- README 정리
+- local session token 추가
+- auth 상태 체크 공용화
+- README / launcher 정리
+- dashboard dead code 정리
 
 ### 3주차
 
-- 결과물 비교 화면 구현
-- 부분 재실행 구현
-- repo-aware 정보 표시
+- 결과 비교 UI
+- 실패 task 재실행
+- result selection 저장
 
 ### 4주차
 
+- repo-aware context
 - doctor 화면
-- selection persistence
-- 템플릿과 preset
+- preset / workflow template
 - 알파 사용자 테스트
 
-## 출시 전 체크리스트
+## 출시 판단
 
-- `npx llmtrio` 기준으로 첫 실행이 주요 OS에서 동작
-- Setup 화면에서 실제 설치/로그인 흐름이 동작
-- 승인 모드가 실질적인 품질 향상을 제공
-- 설정 변경이 실제 실행과 일치
-- 결과 비교 후 채택이 가능
-- README가 실제 기능만 약속
+현재 버전은 다음 용도로는 충분하다.
+
+- 데모
+- 알파 테스터 모집
+- 초기 사용자 인터뷰
+- 기술 방향 검증
+
+하지만 아직 아래 상태는 아니다.
+
+- 유료 팀 도구
+- 신뢰성 있는 daily driver
+- 기업용 설치형 툴
+
+유료화 전 최소 조건:
+
+- Approval mode 품질이 실제로 일관적일 것
+- Windows Setup이 정말 동작할 것
+- Start / Stop / Retry가 믿을 수 있을 것
+- 결과 비교와 선택이 가능할 것
 
 ## 최종 결론
 
-상품성은 있다.  
-하지만 성공 조건은 분명하다.
+최신 버전의 평가는 분명히 좋아졌다.
 
-- 브라우저 Setup 경험은 유지할 것
-- 엔진과 UI의 약속을 맞출 것
-- 복잡한 기능보다 신뢰도를 먼저 확보할 것
-- `설치 -> 실행 -> 승인 -> 비교 -> 선택` 흐름을 제품의 중심으로 둘 것
+- 방향은 맞다
+- 핵심 가치도 보인다
+- 문서도 더 솔직해졌다
+- 죽은 기능을 걷어낸 판단도 좋다
 
-이 프로젝트는 `많은 기능을 가진 데모`보다  
-`로컬에서 믿고 쓰는 AI 코딩 워크플로 도구`로 갈 때 훨씬 더 상품성이 높다.
+하지만 아직 냉정하게 말하면 `정리 중인 알파`다.
+
+지금 가장 중요한 원칙은 하나다.
+
+`더 많은 기능을 만들기보다, 이미 약속한 핵심 흐름을 진짜 믿을 수 있게 만드는 것`
+
+이 원칙만 지키면 `LLMTrio`는 충분히 상품이 될 수 있다.  
+이 원칙을 놓치면 다시 "멋져 보이지만 끝까지 믿기 어려운 도구"로 돌아갈 가능성이 높다.
