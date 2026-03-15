@@ -58,11 +58,6 @@
         <span class="meta-value" id="elapsed-claude">0.0s</span>
       </div>
       <div class="agent-output" id="output-claude" data-i18n="waiting">Waiting for response...</div>
-      <div class="agent-controls">
-        <input type="text" class="agent-prompt-input" id="prompt-claude" data-i18n-placeholder="sendTo" data-agent="Claude" placeholder="Send to Claude..." />
-        <button class="btn btn-send" onclick="sendPrompt('claude')" data-i18n="send">Send</button>
-        <button class="btn btn-cancel" onclick="sendCmd('cancel','claude')">✕</button>
-      </div>
     </div>
 
     <div class="agent-card agent-codex" id="card-codex" onclick="toggleAgentDetail('codex')">
@@ -85,11 +80,6 @@
         <span class="meta-value" id="elapsed-codex">0.0s</span>
       </div>
       <div class="agent-output" id="output-codex" data-i18n="waiting">Waiting for response...</div>
-      <div class="agent-controls">
-        <input type="text" class="agent-prompt-input" id="prompt-codex" data-i18n-placeholder="sendTo" data-agent="Codex" placeholder="Send to Codex..." />
-        <button class="btn btn-send" onclick="sendPrompt('codex')" data-i18n="send">Send</button>
-        <button class="btn btn-cancel" onclick="sendCmd('cancel','codex')">✕</button>
-      </div>
     </div>
 
     <div class="agent-card agent-gemini" id="card-gemini" onclick="toggleAgentDetail('gemini')">
@@ -112,11 +102,6 @@
         <span class="meta-value" id="elapsed-gemini">0.0s</span>
       </div>
       <div class="agent-output" id="output-gemini" data-i18n="waiting">Waiting for response...</div>
-      <div class="agent-controls">
-        <input type="text" class="agent-prompt-input" id="prompt-gemini" data-i18n-placeholder="sendTo" data-agent="Gemini" placeholder="Send to Gemini..." />
-        <button class="btn btn-send" onclick="sendPrompt('gemini')" data-i18n="send">Send</button>
-        <button class="btn btn-cancel" onclick="sendCmd('cancel','gemini')">✕</button>
-      </div>
     </div>
 
     <!-- Agent Detail Panel (slides out from left panel) -->

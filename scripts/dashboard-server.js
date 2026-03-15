@@ -179,13 +179,7 @@ function handleResultsChange(filename) {
   const data = parseJsonFileSync(filePath);
   if (!data) return;
 
-  // Determine event type from file content or name
-  if (filename.includes('agent') || data.agent) {
-    broadcast('agent-update', { file: filename, ...data });
-  } else {
-    // Default: broadcast as agent-update
-    broadcast('agent-update', { file: filename, ...data });
-  }
+  broadcast('agent-update', { file: filename, ...data });
 }
 
 // --- HTTP handler ---
@@ -774,6 +768,7 @@ function installCli(req, res) {
 // --- POST /api/cli-login ---
 
 const LOGIN_CLI = {
+  gemini: 'gemini',
   claude: 'claude',
   codex: 'codex',
 };
@@ -957,7 +952,7 @@ function runSingleAgent(req, res) {
       proc.on('close', (code) => {
         clearTimeout(timer);
         res.writeHead(code === 0 ? 200 : 500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: code === 0, output: output.slice(-4000), error: stderr.slice(-1000) || (code !== 0 ? `Exit code ${code}` : '') }));
+        res.end(JSON.stringify({ ok: code === 0, output: output.slice(-16000), error: stderr.slice(-1000) || (code !== 0 ? `Exit code ${code}` : '') }));
       });
 
       proc.on('error', (err) => {

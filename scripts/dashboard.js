@@ -867,17 +867,7 @@
     });
   };
 
-  window.sendPrompt = function(agent) {
-    const input = $('prompt-' + agent);
-    const text = input.value.trim();
-    if (!text) return;
-    postCommand({ type: 'prompt', target: agent, content: text });
-    input.value = '';
-  };
 
-  window.sendCmd = function(type, agent) {
-    postCommand({ type: type, target: agent });
-  };
 
   // ── Phase 2: Tab Switching ──
   window.switchTab = function(tabId) {
@@ -1956,17 +1946,7 @@ ${rawOutput.slice(0, 4000)}`,
   };
 
   // Enter key support for prompt inputs
-  function initPromptInputs() {
-    for (const agent of ['claude', 'codex', 'gemini']) {
-      const input = $('prompt-' + agent);
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          window.sendPrompt(agent);
-        }
-      });
-    }
-  }
+  function initPromptInputs() {}
 
   // Single source of truth: sync task array → agent card states
   function syncTasksToAgents(newTasks) {

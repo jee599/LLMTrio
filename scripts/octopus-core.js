@@ -94,13 +94,6 @@ function readJson(fp) {
 function log(msg) { console.log(`[octopus ${new Date().toISOString().slice(11, 19)}] ${msg}`); }
 function genTaskId() { return 'task-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-// --- Models ---
-function loadModels() {
-  const data = readJson(path.join(TRIO_DIR, 'models.json'));
-  if (!data?.models) return {};
-  return Object.fromEntries(data.models.map((m) => [m.id, m]));
-}
-
 function estimateTokens(chars) {
   return Math.ceil(chars / 4);
 }
@@ -329,7 +322,7 @@ async function runWorkflow(prompt, opts = {}) {
 
     await Promise.all(phaseTasks.map(async (task) => {
       if (shuttingDown) return;
-      const budgetCheck = checkBudget(state.sessionCost);
+      const budgetCheck = checkBudget();
       if (!budgetCheck.ok) {
         log(`Budget exceeded: ${budgetCheck.reason}`);
         task.status = 'error'; task.error = budgetCheck.reason;

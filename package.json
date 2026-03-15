@@ -10,7 +10,6 @@
     "bin/",
     "scripts/",
     "config/",
-    "commands/",
     "README.md"
   ],
   "keywords": [
@@ -29,7 +28,7 @@
     "url": "git+https://github.com/jee599/LLMTrio.git"
   },
   "scripts": {
-    "test": "node --test test/e2e.js"
+    "test": "node --test test/e2e.js test/workflow.js"
   },
   "engines": {
     "node": ">=18.0.0"
