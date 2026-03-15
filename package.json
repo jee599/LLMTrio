@@ -8,7 +8,12 @@
   "files": [
     "trio",
     "bin/",
-    "scripts/",
+    "scripts/octopus-core.js",
+    "scripts/dashboard-server.js",
+    "scripts/dashboard.html",
+    "scripts/dashboard.css",
+    "scripts/dashboard.js",
+    "scripts/lib/",
     "config/",
     "README.md"
   ],

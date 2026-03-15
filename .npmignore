@@ -1,0 +1,8 @@
+scripts/command-watcher.sh
+scripts/model-checker.sh
+test/
+docs/
+posts/
+.trio/
+*.md
+!README.md
