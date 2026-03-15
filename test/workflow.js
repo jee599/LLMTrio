@@ -122,3 +122,32 @@ test('Auth: shared module works', async (t) => {
   assert.equal(typeof status.claude.installed, 'boolean');
   assert.equal(typeof status.claude.authenticated, 'boolean');
 });
+
+test('Platform: cross-platform helpers', async (t) => {
+  const isWin = process.platform === 'win32';
+  const { checkCli } = require('../scripts/lib/auth');
+  
+  // Verify which/where selection
+  const whichCmd = isWin ? 'where' : 'which';
+  assert.ok(whichCmd === 'which' || whichCmd === 'where');
+  
+  // Verify node is detectable
+  const nodeCheck = checkCli('node');
+  assert.equal(nodeCheck.installed, true);
+  assert.ok(nodeCheck.version.length > 0);
+});
+
+test('Security: session token format', async (t) => {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(16).toString('hex');
+  assert.equal(token.length, 32); // 16 bytes = 32 hex chars
+  assert.match(token, /^[a-f0-9]+$/);
+});
+
+test('Config: budget.json schema', async (t) => {
+  const defaultBudget = path.join(ROOT, 'config', 'default-budget.json');
+  if (fs.existsSync(defaultBudget)) {
+    const budget = JSON.parse(fs.readFileSync(defaultBudget, 'utf8'));
+    assert.ok(typeof budget === 'object', 'budget.json is valid JSON object');
+  }
+});

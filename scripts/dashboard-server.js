@@ -704,7 +704,7 @@ function saveApiKey(req, res) {
       lines = lines.filter(l => !l.startsWith(envVar + '='));
       lines.push(`${envVar}=${key}`);
       const tmpEnv = envFile + '.tmp';
-      fs.writeFileSync(tmpEnv, lines.join('\n') + '\n', 'utf8');
+      fs.writeFileSync(tmpEnv, lines.join('\n') + '\n', { encoding: 'utf8', mode: 0o600 });
       fs.renameSync(tmpEnv, envFile);
 
       // Also set in current process
