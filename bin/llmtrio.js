@@ -2,6 +2,7 @@
 const { execSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { getAuthStatus } = require('../scripts/lib/auth');
 
 const ROOT = path.resolve(__dirname, '..');
 const TRIO_DIR = path.join(ROOT, '.trio');
@@ -68,21 +69,17 @@ switch (arg) {
     break;
   }
   case 'login': {
-    // Inline login check (no bash dependency)
-    const agents = [
-      { name: 'Claude', cmd: 'claude', check: () => fs.existsSync(path.join(process.env.HOME || process.env.USERPROFILE || '', '.claude', '.credentials.json')) || !!process.env.ANTHROPIC_API_KEY },
-      { name: 'Codex', cmd: 'codex', check: () => !!process.env.OPENAI_API_KEY },
-      { name: 'Gemini', cmd: 'gemini', check: () => !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY },
-    ];
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+    const status = getAuthStatus();
     console.log('=== LLMTrio — CLI Authentication Status ===\n');
-    for (const a of agents) {
-      try {
-        execSync(`${whichCmd} ${a.cmd}`, { stdio: 'pipe' });
-        const authed = a.check();
-        console.log(`${a.name} ... ${authed ? '✓ Authenticated' : '⚠ Installed, needs auth'}`);
-      } catch {
-        console.log(`${a.name} ... ✗ Not installed`);
+    for (const name of ['claude', 'codex', 'gemini']) {
+      const info = status[name];
+      const label = name.charAt(0).toUpperCase() + name.slice(1);
+      if (!info.installed) {
+        console.log(`${label} ... ✗ Not installed`);
+      } else if (info.authenticated) {
+        console.log(`${label} ... ✓ Authenticated`);
+      } else {
+        console.log(`${label} ... ⚠ Installed, needs auth`);
       }
     }
     console.log('\n=== Done ===');

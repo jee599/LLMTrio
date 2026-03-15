@@ -1,3 +1,4 @@
 .trio/
 node_modules/
 *.pid
+docs/

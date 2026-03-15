@@ -76,7 +76,7 @@ function readJson(fp) {
 function log(msg) { console.log(`[octopus ${new Date().toISOString().slice(11, 19)}] ${msg}`); }
 function genTaskId() { return 'task-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-// --- Models & cost ---
+// --- Models ---
 function loadModels() {
   const data = readJson(path.join(TRIO_DIR, 'models.json'));
   if (!data?.models) return {};
@@ -99,7 +99,9 @@ function checkBudget() {
   return { ok: true };
 }
 
-// --- Routing ---
+// --- Agent Assignment ---
+// routing.json maps task types to agents, not to specific models.
+// The file name stays as routing.json for backward compatibility.
 function resolveAgent(taskType) {
   const r = readJson(path.join(TRIO_DIR, 'routing.json'));
   if (!r?.rules) return 'claude';
@@ -110,7 +112,7 @@ function resolveAgent(taskType) {
   return 'claude';
 }
 
-function resolveModelId(agent) {
+function getAgentModel(agent) {
   const r = readJson(path.join(TRIO_DIR, 'routing.json'));
   if (!r?.rules) return null;
   for (const mid of Object.values(r.rules)) {
@@ -263,7 +265,7 @@ async function runWorkflow(prompt, opts = {}) {
 
     const phaseTasks = phases[phase].map((t) => {
       const agent = t.agent || resolveAgent(t.type);
-      const model = resolveModelId(agent) || agent;
+      const model = getAgentModel(agent) || agent;
       return {
         id: genTaskId(), name: t.name, type: t.type, phase,
         agent, model, status: 'pending', elapsed: 0, tokens: 0,

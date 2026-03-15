@@ -10,11 +10,10 @@
   // ── State ──
   const state = {
     agents: {
-      claude: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
-      codex:  { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
-      gemini: { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '' },
+      claude: { status: 'pending', task: '', elapsed: 0, output: '', file: '', startedAt: null, model: '' },
+      codex:  { status: 'pending', task: '', elapsed: 0, output: '', file: '', startedAt: null, model: '' },
+      gemini: { status: 'pending', task: '', elapsed: 0, output: '', file: '', startedAt: null, model: '' },
     },
-    cost: { total: 0, claude: 0, codex: 0, gemini: 0, budget: 5.0, opusCalls: 0 },
     phase: 'discover',
     sseConnected: false,
   };
@@ -24,41 +23,19 @@
       waiting: 'Waiting for response...',
       task: 'Task',
       elapsed: 'Elapsed',
-      cost: 'Cost',
       output: 'Output',
       pending: 'Pending',
       working: 'Working',
       done: 'Done',
       error: 'Error',
       cancelled: 'Cancelled',
-      totalCost: 'Total Cost',
-      budget: 'Budget',
-      opusCalls: 'Opus Calls',
       sendTo: (agent) => `Send to ${agent}...`,
       send: 'Send',
 
-      debateEmpty: 'No debate started yet.',
-      consensus: 'Consensus',
-      taskBoard: 'Task Board',
-      models: 'Models',
       flow: 'Flow',
-      debate: 'Debate',
-      pendingCol: 'Pending',
-      workingCol: 'In Progress',
-      doneCol: 'Done',
       routing: 'Task Routing',
-      budgetControls: 'Budget Limits',
-      sessionLimit: 'Session Limit',
-      dailyLimit: 'Daily Limit',
-      opusLimit: 'Opus Call Limit',
+      agentAssignment: 'Agent Assignment',
       save: 'Save',
-      noModels: 'No model data. Run model-checker.sh.',
-      loadingModels: 'Loading models...',
-      newModelDetected: 'New model detected',
-      firstRunTitle: 'LLMTrio First Run Setup',
-      firstRunDesc: 'Gemini searched for the latest AI coding models. Review the settings below.',
-      confirm: 'Confirm',
-      edit: 'Edit',
       dashboardStopped: 'Dashboard stopped.',
       input: 'Input',
       userPrompt: 'User Prompt',
@@ -71,7 +48,6 @@
       research: 'Research',
       codeReview: 'Code Review',
       documentation: 'Documentation',
-      addOpinion: 'Add your opinion to the debate...',
       rejectReason: 'Enter rejection reason:',
       approve: 'Approve',
       reject: 'Reject',
@@ -80,41 +56,19 @@
       waiting: '응답 대기 중...',
       task: '작업',
       elapsed: '경과시간',
-      cost: '비용',
       output: '출력',
       pending: '대기',
       working: '작업중',
       done: '완료',
       error: '오류',
       cancelled: '취소',
-      totalCost: '총 비용',
-      budget: '예산',
-      opusCalls: 'Opus 호출',
       sendTo: (agent) => `${agent}에게 지시...`,
       send: '전송',
 
-      debateEmpty: '토론이 시작되지 않았습니다.',
-      consensus: '합의도',
-      taskBoard: '태스크 보드',
-      models: '모델 관리',
       flow: '흐름도',
-      debate: '토론',
-      pendingCol: '대기',
-      workingCol: '진행중',
-      doneCol: '완료',
       routing: '작업별 모델 라우팅',
-      budgetControls: '비용 한도 설정',
-      sessionLimit: '세션 한도',
-      dailyLimit: '일일 한도',
-      opusLimit: 'Opus 호출 제한',
+      agentAssignment: '에이전트 할당',
       save: '저장',
-      noModels: '모델 정보가 없습니다. model-checker.sh 실행 필요.',
-      loadingModels: '모델 정보를 불러오는 중...',
-      newModelDetected: '새 모델이 감지되었습니다',
-      firstRunTitle: 'LLMTrio 첫 실행 설정',
-      firstRunDesc: 'Gemini가 최신 AI 코딩 모델을 검색했습니다. 아래 설정을 확인하세요.',
-      confirm: '이대로 설정',
-      edit: '수정',
       dashboardStopped: '대시보드가 종료되었습니다.',
       input: '입력',
       userPrompt: '사용자 프롬프트',
@@ -127,7 +81,6 @@
       research: '리서치',
       codeReview: '코드리뷰',
       documentation: '문서',
-      addOpinion: '토론에 의견을 추가...',
       rejectReason: '거절 사유를 입력하세요:',
       approve: '승인',
       reject: '거절',
@@ -136,41 +89,19 @@
       waiting: '等待响应中...',
       task: '任务',
       elapsed: '耗时',
-      cost: '费用',
       output: '输出',
       pending: '待定',
       working: '运行中',
       done: '完成',
       error: '错误',
       cancelled: '已取消',
-      totalCost: '总费用',
-      budget: '预算',
-      opusCalls: 'Opus 调用',
       sendTo: (agent) => `发送给 ${agent}...`,
       send: '发送',
 
-      debateEmpty: '讨论尚未开始。',
-      consensus: '共识度',
-      taskBoard: '任务板',
-      models: '模型管理',
       flow: '流程图',
-      debate: '讨论',
-      pendingCol: '待定',
-      workingCol: '进行中',
-      doneCol: '完成',
       routing: '任务路由',
-      budgetControls: '费用限制',
-      sessionLimit: '会话限制',
-      dailyLimit: '每日限制',
-      opusLimit: 'Opus 调用限制',
+      agentAssignment: '代理分配',
       save: '保存',
-      noModels: '无模型信息。请运行 model-checker.sh。',
-      loadingModels: '加载模型信息中...',
-      newModelDetected: '检测到新模型',
-      firstRunTitle: 'LLMTrio 首次运行设置',
-      firstRunDesc: 'Gemini 搜索了最新的 AI 编码模型。请查看以下设置。',
-      confirm: '确认',
-      edit: '编辑',
       dashboardStopped: '仪表板已停止。',
       input: '输入',
       userPrompt: '用户提示词',
@@ -183,7 +114,6 @@
       research: '研究',
       codeReview: '代码审查',
       documentation: '文档',
-      addOpinion: '添加您的意见到讨论...',
       rejectReason: '请输入拒绝原因:',
       approve: '批准',
       reject: '拒绝',
@@ -192,41 +122,19 @@
       waiting: '応答待機中...',
       task: 'タスク',
       elapsed: '経過時間',
-      cost: 'コスト',
       output: '出力',
       pending: '待機',
       working: '実行中',
       done: '完了',
       error: 'エラー',
       cancelled: 'キャンセル済',
-      totalCost: '合計コスト',
-      budget: '予算',
-      opusCalls: 'Opus 呼出',
       sendTo: (agent) => `${agent}に送信...`,
       send: '送信',
 
-      debateEmpty: 'ディベートはまだ始まっていません。',
-      consensus: 'コンセンサス',
-      taskBoard: 'タスクボード',
-      models: 'モデル管理',
       flow: 'フロー図',
-      debate: 'ディベート',
-      pendingCol: '待機',
-      workingCol: '進行中',
-      doneCol: '完了',
       routing: 'タスクルーティング',
-      budgetControls: 'コスト制限',
-      sessionLimit: 'セッション制限',
-      dailyLimit: '日次制限',
-      opusLimit: 'Opus 呼出制限',
+      agentAssignment: 'エージェント割り当て',
       save: '保存',
-      noModels: 'モデル情報がありません。model-checker.sh を実行してください。',
-      loadingModels: 'モデル情報を読み込み中...',
-      newModelDetected: '新しいモデルが検出されました',
-      firstRunTitle: 'LLMTrio 初回セットアップ',
-      firstRunDesc: 'Gemini が最新の AI コーディングモデルを検索しました。以下の設定を確認してください。',
-      confirm: '確認',
-      edit: '編集',
       dashboardStopped: 'ダッシュボードが停止しました。',
       input: '入力',
       userPrompt: 'ユーザープロンプト',
@@ -239,7 +147,6 @@
       research: 'リサーチ',
       codeReview: 'コードレビュー',
       documentation: 'ドキュメント',
-      addOpinion: 'ディベートに意見を追加...',
       rejectReason: '拒否理由を入力してください:',
       approve: '承認',
       reject: '拒否',
@@ -551,10 +458,6 @@
   }
 
 
-  function formatCost(val) {
-    return '$' + (val || 0).toFixed(3);
-  }
-
   function formatTokens(val) {
     if (!val) return '0';
     if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
@@ -659,7 +562,6 @@
       a.status = data.status;
     }
     if (data.task !== undefined) a.task = data.task;
-    if (data.cost !== undefined) a.cost = data.cost;
     if (data.output !== undefined) a.output = data.output;
     if (data.outputAppend !== undefined) a.output += data.outputAppend;
     if (data.file !== undefined) a.file = data.file;
@@ -671,16 +573,6 @@
     queueRender();
   }
 
-  function updateCostMeter(data) {
-    if (data.total !== undefined) state.cost.total = data.total;
-    if (data.claude !== undefined) state.cost.claude = data.claude;
-    if (data.codex !== undefined) state.cost.codex = data.codex;
-    if (data.gemini !== undefined) state.cost.gemini = data.gemini;
-    if (data.budget !== undefined) state.cost.budget = data.budget;
-    if (data.opusCalls !== undefined) state.cost.opusCalls = data.opusCalls;
-
-    queueRender();
-  }
 
   function applyFullState(fullState) {
     // Set workflow ID on initial load
@@ -757,14 +649,6 @@
         }
       } catch (err) {
         console.error('agent-update parse error:', err);
-      }
-    });
-
-    eventSource.addEventListener('cost-update', (e) => {
-      try {
-        updateCostMeter(JSON.parse(e.data));
-      } catch (err) {
-        console.error('cost-update parse error:', err);
       }
     });
 
@@ -933,7 +817,7 @@
     if (rsc) rsc.innerHTML = '';
     // Reset agent states
     ['claude', 'codex', 'gemini'].forEach(name => {
-      Object.assign(state.agents[name], { status: 'pending', task: '', elapsed: 0, cost: 0, output: '', file: '', startedAt: null, model: '', totalElapsed: 0 });
+      Object.assign(state.agents[name], { status: 'pending', task: '', elapsed: 0, output: '', file: '', startedAt: null, model: '', totalElapsed: 0 });
     });
     const badge = $('notifBadge');
     if (badge) badge.classList.remove('show');
@@ -2134,7 +2018,6 @@ ${rawOutput.slice(0, 4000)}`,
     }
   }
 
-  let models = [];
   let routing = {};
 
   function loadRouting() {
@@ -2379,38 +2262,6 @@ ${rawOutput.slice(0, 4000)}`,
     switchTab('flow');
   };
 
-  // First run handling
-  window.confirmFirstRun = function() {
-    $('firstRunOverlay').style.display = 'none';
-  };
-
-  window.dismissFirstRun = function() {
-    $('firstRunOverlay').style.display = 'none';
-    switchTab('models');
-  };
-
-  function checkFirstRun() {
-    fetch('/api/state', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data && data.firstRun) {
-          showFirstRunOverlay(data);
-        }
-      })
-      .catch(err => { console.error('fetch error:', err); });
-  }
-
-  function showFirstRunOverlay(data) {
-    $('firstRunOverlay').style.display = 'flex';
-    if (models.length > 0) {
-      $('firstRunModels').innerHTML = '<h3 style="font-size:13px;margin-bottom:8px;">' + t.models + '</h3>' +
-        models.map(m => '<div style="padding:4px 0;font-size:12px;">' + escapeHtml(m.name || m.id) + ' (' + escapeHtml(m.provider || '') + ')</div>').join('');
-    }
-    if (Object.keys(routing).length > 0) {
-      $('firstRunRouting').innerHTML = '<h3 style="font-size:13px;margin-bottom:8px;">' + t.routing + '</h3>' +
-        Object.entries(routing).map(([k, v]) => '<div style="padding:4px 0;font-size:12px;display:flex;justify-content:space-between;"><span>' + k + '</span><span style="font-family:var(--font-mono)">' + v + '</span></div>').join('');
-    }
-  }
 
   // ── Init ──
   function init() {

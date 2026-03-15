@@ -289,11 +289,11 @@
       </div>
 
       </div>
-      <!-- Col 2: Routing -->
+      <!-- Col 2: Agent Assignment -->
       <div>
       <div class="routing-section">
-        <h3 data-i18n="routing">Task Routing</h3>
-        <p style="color:var(--text-muted);font-size:11px;margin-bottom:12px;">Each agent handles specific task types. Model selection is determined by your CLI subscription.</p>
+        <h3 data-i18n="agentAssignment">Agent Assignment</h3>
+        <p style="color:var(--text-muted);font-size:11px;margin-bottom:12px;">Each agent is assigned to specific task types. Model selection is determined by your CLI subscription.</p>
         <div id="routingRules"></div>
       </div>
 
@@ -302,22 +302,6 @@
     </div>
 
     <div class="main-watermark">LLMTrio v1.0</div>
-  </div>
-
-  <!-- First Run Overlay -->
-  <div class="first-run-overlay" id="firstRunOverlay" style="display:none;">
-    <div class="first-run-modal">
-      <h2 data-i18n="firstRunTitle">LLMTrio First Run Setup</h2>
-      <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13px;" data-i18n="firstRunDesc">
-        Gemini searched for the latest AI coding models. Review the settings below.
-      </p>
-      <div id="firstRunModels" style="margin-bottom:16px;"></div>
-      <div id="firstRunRouting" style="margin-bottom:16px;"></div>
-      <div class="first-run-actions">
-        <button class="btn" onclick="dismissFirstRun()" data-i18n="edit">Edit</button>
-        <button class="btn-primary" onclick="confirmFirstRun()" data-i18n="confirm">Confirm</button>
-      </div>
-    </div>
   </div>
 
   <!-- Floating expanded prompt (overlays above bottom bar) -->

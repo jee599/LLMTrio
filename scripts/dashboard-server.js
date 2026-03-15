@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync, spawn } = require('child_process');
+const { checkCli: sharedCheckCli, getAuthStatus } = require('./lib/auth');
 
 const SESSION_TOKEN = crypto.randomBytes(16).toString('hex');
 
@@ -172,10 +173,6 @@ function handleResultsChange(filename) {
   // Determine event type from file content or name
   if (filename.includes('agent') || data.agent) {
     broadcast('agent-update', { file: filename, ...data });
-  } else if (filename.includes('cost') || data.cost !== undefined) {
-    broadcast('cost-update', { file: filename, ...data });
-  } else if (filename.includes('debate') || data.debate !== undefined) {
-    broadcast('debate-update', { file: filename, ...data });
   } else {
     // Default: broadcast as agent-update
     broadcast('agent-update', { file: filename, ...data });
@@ -606,47 +603,18 @@ function startWorkflow(prompt, opts = {}) {
 
 // --- GET /api/auth-status ---
 
-function checkCli(cmd) {
-  try {
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-    const p = execSync(`${whichCmd} ${cmd}`, { stdio: 'pipe' }).toString().trim().split('\n')[0];
-    let version = '';
-    try { version = execSync(`${cmd} --version`, { stdio: 'pipe' }).toString().trim().split('\n')[0]; } catch {}
-    return { installed: true, path: p, version };
-  } catch {
-    return { installed: false };
-  }
-}
-
 function serveAuthStatus(res) {
+  // Load saved API keys from .trio/.env and inject into process.env for auth check
   const envFile = path.join(TRIO_DIR, '.env');
-  let savedKeys = {};
   try {
     const raw = fs.readFileSync(envFile, 'utf8');
     for (const line of raw.split('\n')) {
       const m = line.match(/^([A-Z_]+)=(.+)$/);
-      if (m) savedKeys[m[1]] = m[2];
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
     }
   } catch {}
 
-  const claude = checkCli('claude');
-  const codex = checkCli('codex');
-  const gemini = checkCli('gemini');
-
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  const claudeAuth = fs.existsSync(path.join(home, '.claude', '.credentials.json'))
-    || !!process.env.ANTHROPIC_API_KEY || !!savedKeys.ANTHROPIC_API_KEY;
-  const codexAuth = !!process.env.OPENAI_API_KEY || !!savedKeys.OPENAI_API_KEY
-    || fs.existsSync(path.join(home, '.codex', 'auth.json'));
-  const geminiAuth = !!process.env.GEMINI_API_KEY || !!savedKeys.GEMINI_API_KEY
-    || !!process.env.GOOGLE_API_KEY || !!savedKeys.GOOGLE_API_KEY;
-
-  const status = {
-    claude: { ...claude, authenticated: claude.installed && claudeAuth },
-    codex:  { ...codex,  authenticated: codex.installed && codexAuth },
-    gemini: { ...gemini, authenticated: gemini.installed && geminiAuth },
-    ready: (claude.installed && claudeAuth) || (codex.installed && codexAuth),
-  };
+  const status = getAuthStatus();
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(status));
