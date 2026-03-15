@@ -258,6 +258,7 @@ const VALID_TARGETS = ['claude','codex','gemini'];
 let workflowProc = null;
 let _workflowPrompt = '';
 let _workflowAutoMode = false;
+let _workflowTemplate = null;
 
 function startExecutePhase() {
   const stateFile = path.join(TRIO_DIR, 'state.json');
@@ -278,7 +279,10 @@ function startExecutePhase() {
 
   console.log(`[dashboard-server] starting execute phase for: ${prompt.slice(0, 60)}...`);
 
-  workflowProc = spawn('node', [octopus, 'start', '--phase', 'execute', prompt], {
+  const execArgs = [octopus, 'start', '--phase', 'execute'];
+  if (_workflowTemplate) execArgs.push('--template', _workflowTemplate);
+  execArgs.push(prompt);
+  workflowProc = spawn('node', execArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: spawnEnv,
   });
@@ -516,6 +520,7 @@ function startWorkflow(prompt, opts = {}) {
   // Store workflow config for resume
   _workflowPrompt = prompt;
   _workflowAutoMode = !!opts.autoMode;
+  _workflowTemplate = opts.template || null;
 
   const args = [octopus, 'start'];
   // In approval mode: only run plan phase. In auto mode: run both.
