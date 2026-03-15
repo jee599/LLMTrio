@@ -210,16 +210,16 @@ function spawnAgent(agentId, content, taskInfo) {
     // Notify caller that process actually spawned (for status tracking)
     if (taskInfo._onSpawned) taskInfo._onSpawned();
 
-    // Timeout: kill process if it takes too long
+    // Timeout: kill process if it takes too long (0 = no timeout)
     const timeoutSec = loadTimeout();
     let timedOut = false;
     let killTimer = null;
-    const timer = setTimeout(() => {
+    const timer = timeoutSec > 0 ? setTimeout(() => {
       timedOut = true;
       log(`[${agentId}] TIMEOUT after ${timeoutSec}s — killing "${taskInfo.name}"`);
       try { proc.kill('SIGTERM'); } catch {}
       killTimer = setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 3000);
-    }, timeoutSec * 1000);
+    }, timeoutSec * 1000) : null;
 
     proc.stdout.on('data', (chunk) => {
       output += chunk.toString();
