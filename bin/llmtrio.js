@@ -8,6 +8,11 @@ const ROOT = path.resolve(__dirname, '..');
 const TRIO_DIR = path.join(ROOT, '.trio');
 const arg = process.argv[2] || 'dashboard';
 
+// Show helpful message for Windows users
+if (process.platform === 'win32' && process.argv[1]?.endsWith('trio')) {
+  console.log('Note: ./trio is Unix-only. Use "npx llmtrio" on Windows.');
+}
+
 // Ensure runtime dirs exist
 ['pids', 'commands', 'results'].forEach(d => {
   fs.mkdirSync(path.join(TRIO_DIR, d), { recursive: true });

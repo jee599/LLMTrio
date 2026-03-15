@@ -712,6 +712,8 @@
       console.log('[workflow] complete');
       state.phase = 'complete';
       _workflowStartedLocally = false;
+      const spinner2 = document.getElementById('workflowSpinner');
+      if (spinner2) spinner2.style.display = 'none';
       // Fetch final state to ensure everything is synced
       fetchFullState();
       queueRender();
@@ -806,6 +808,8 @@
     tasks = [];
     state.workflowTasks = [];
     state.phase = 'plan';
+    const spinner = document.getElementById('workflowSpinner');
+    if (spinner) spinner.style.display = 'inline-block';
     state.phaseProgress = 0;
     state.sessionTokens = 0;
     state.workflowPrompt = text;
