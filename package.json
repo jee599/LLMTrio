@@ -1,6 +1,6 @@
 {
   "name": "llmtrio",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Multi-LLM orchestration tool. Run Claude, Codex, and Gemini in parallel with a real-time dashboard.",
   "bin": {
     "llmtrio": "./bin/llmtrio.js"
