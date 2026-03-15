@@ -51,6 +51,7 @@
       rejectReason: 'Enter rejection reason:',
       approve: 'Approve',
       reject: 'Reject',
+      adopt: 'Save Result',
     },
     ko: {
       waiting: '응답 대기 중...',
@@ -84,6 +85,7 @@
       rejectReason: '거절 사유를 입력하세요:',
       approve: '승인',
       reject: '거절',
+      adopt: '결과 채택',
     },
     zh: {
       waiting: '等待响应中...',
@@ -117,6 +119,7 @@
       rejectReason: '请输入拒绝原因:',
       approve: '批准',
       reject: '拒绝',
+      adopt: '采纳结果',
     },
     ja: {
       waiting: '応答待機中...',
@@ -150,6 +153,7 @@
       rejectReason: '拒否理由を入力してください:',
       approve: '承認',
       reject: '拒否',
+      adopt: '結果採用',
     }
   };
 
@@ -183,6 +187,7 @@
       checking: 'Checking...', askingGemini: 'Asking Gemini for latest models...',
       saved: 'Saved!', idle: 'Idle — enter a prompt',
       rejectReason: 'Enter rejection reason',
+      adopt: 'Save Result', savedTo: 'Saved to ',
     },
     ko: {
       noTasksYet: '아직 태스크가 없습니다', enterPrompt: '프롬프트를 입력해서 워크플로우를 시작하세요',
@@ -210,6 +215,7 @@
       checking: '확인 중...', askingGemini: 'Gemini에게 최신 모델 정보를 요청 중...',
       saved: '저장됨!', idle: '대기 중 — 프롬프트를 입력하세요',
       rejectReason: '거절 사유를 입력하세요',
+      adopt: '결과 채택', savedTo: '저장됨: ',
     },
     zh: {
       noTasksYet: '暂无任务', enterPrompt: '输入提示词以启动工作流',
@@ -237,6 +243,7 @@
       checking: '检查中...', askingGemini: '正在向 Gemini 查询最新模型信息...',
       saved: '已保存!', idle: '空闲 — 请输入提示词',
       rejectReason: '请输入拒绝原因',
+      adopt: '采纳结果', savedTo: '已保存至: ',
     },
     ja: {
       noTasksYet: 'タスクがありません', enterPrompt: 'プロンプトを入力してワークフローを開始',
@@ -264,6 +271,7 @@
       checking: '確認中...', askingGemini: 'Gemini に最新モデル情報を問い合わせ中...',
       saved: '保存済み!', idle: '待機中 — プロンプトを入力してください',
       rejectReason: '拒否理由を入力してください',
+      adopt: '結果採用', savedTo: '保存先: ',
     },
   };
   function tt(key) { return (_s[lang] || _s.en)[key] || _s.en[key] || key; }
@@ -832,10 +840,12 @@
     btn.textContent = 'Starting...';
     status.textContent = '';
     // Send as workflow start command
+    const template = document.getElementById('templateSelect')?.value || 'full';
+    loadRepoInfo();
     fetch('/api/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
-      body: JSON.stringify({ type: 'prompt', content: text, workflow: true, autoMode: _workflowMode === 'auto' }),
+      body: JSON.stringify({ type: 'prompt', content: text, workflow: true, autoMode: _workflowMode === 'auto', template }),
     })
     .then(r => r.json())
     .then(data => {
@@ -906,6 +916,26 @@
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function getErrorSuggestion(error) {
+    if (!error) return '';
+    const e = error.toLowerCase();
+    const suggestions = {
+      timeout: { en: 'Try increasing timeout in Settings.', ko: 'Settings에서 타임아웃을 늘려보세요.', zh: '请在设置中增加超时时间。', ja: '設定でタイムアウトを延長してみてください。' },
+      notfound: { en: 'Check CLI installation in Setup.', ko: 'Setup에서 CLI 설치를 확인하세요.', zh: '请在设置中检查CLI安装。', ja: 'セットアップでCLIインストールを確認してください。' },
+      auth: { en: 'Check authentication in Setup.', ko: 'Setup에서 인증 상태를 확인하세요.', zh: '请在设置中检查认证状态。', ja: 'セットアップで認証状態を確認してください。' },
+      ratelimit: { en: 'Wait a moment and retry.', ko: '잠시 후 재시도하세요.', zh: '请稍后重试。', ja: 'しばらく待ってからリトライしてください。' },
+      crash: { en: 'Try the Retry button.', ko: '재시도 버튼을 눌러보세요.', zh: '请点击重试按钮。', ja: 'リトライボタンを試してください。' },
+    };
+    let key = null;
+    if (e.includes('timed out') || e.includes('timeout')) key = 'timeout';
+    else if (e.includes('enoent') || e.includes('not found') || e.includes('command not found')) key = 'notfound';
+    else if (e.includes('auth') || e.includes('401') || e.includes('403') || e.includes('credential')) key = 'auth';
+    else if (e.includes('rate limit') || e.includes('429')) key = 'ratelimit';
+    else if (e.includes('crash') || e.includes('exit')) key = 'crash';
+    if (!key) return '';
+    return (suggestions[key][lang] || suggestions[key].en);
   }
 
   // ── Task tracking ──
@@ -1177,6 +1207,7 @@ ${rawOutput.slice(0, 4000)}`,
           <span style="margin-left:auto;font-size:10px;color:${statusColor};">${statusIcon}</span>
           <span style="font-size:10px;color:var(--text-muted);">${t.elapsed ? formatElapsed(t.elapsed) : ''}${t.tokens ? ` · ~${t.tokens.toLocaleString()} tok` : ''}</span>
           <button onclick="navigator.clipboard.writeText(document.getElementById('${cardId}').textContent).then(()=>{this.textContent='${tt('copied')}';setTimeout(()=>this.textContent='${tt('copy')}',1500)})" style="padding:3px 8px;font-size:10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);cursor:pointer;">${tt('copy')}</button>
+          <button onclick="adoptResult('${t.id}','${(t.name || '').replace(/'/g, "\\'")}')" style="padding:3px 8px;font-size:10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);cursor:pointer;">${tt('adopt')}</button>
         </div>
         <div class="compare-card-output" id="${cardId}">${escapeHtml(output)}</div>
       </div>`;
@@ -1387,7 +1418,8 @@ ${rawOutput.slice(0, 4000)}`,
           </div>`;
 
         if (t.status === 'error' && t.error) {
-          html += `<div class="fv-card-summary err">${escapeHtml(t.error.slice(0, 150))}</div>`;
+          const suggestion = getErrorSuggestion(t.error);
+          html += `<div class="fv-card-summary err">${escapeHtml(t.error.slice(0, 150))}${suggestion ? `<div style="margin-top:4px;font-size:11px;color:var(--accent-blue);">${suggestion}</div>` : ''}</div>`;
         } else if (t.status === 'done' || t.status === 'working') {
           html += `<div class="fv-card-summary" id="flow-summary-${t.id}">${t.status === 'working' ? tt('runningDot') : '...'}</div>`;
         }
@@ -1546,14 +1578,15 @@ ${rawOutput.slice(0, 4000)}`,
       ${task.error ? `
         <div class="kb-detail-field">
           <div class="kb-detail-label" style="color:var(--accent-red);">${tt('errorLabel')}</div>
-          <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);color:var(--accent-red);">${escapeHtml(task.error)}</div>
+          <div class="kb-detail-output" style="border-color:rgba(239,83,80,0.2);color:var(--accent-red);">${escapeHtml(task.error)}${(() => { const s = getErrorSuggestion(task.error); return s ? `<div style="margin-top:8px;font-size:12px;color:var(--accent-blue);font-weight:500;">${s}</div>` : ''; })()}</div>
         </div>` : ''}
       <div class="kb-detail-field">
         <div class="kb-detail-label">${tt('output')}</div>
         <div class="kb-detail-output" id="flow-detail-output-${task.id}" style="max-height:none;flex:1;">${tt('loading')}</div>
       </div>
-      <div style="padding-top:8px;">
+      <div style="padding-top:8px;display:flex;gap:8px;">
         <button class="btn btn-send" onclick="copyFlowResult('${task.id}')" style="padding:6px 16px;font-size:12px;">${tt('copy')}</button>
+        <button class="btn" onclick="adoptResult('${task.id}','${(task.name || '').replace(/'/g, "\\'")}')" style="padding:6px 16px;font-size:12px;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;">${tt('adopt')}</button>
       </div>
     `;
 
@@ -1588,6 +1621,37 @@ ${rawOutput.slice(0, 4000)}`,
       });
     }
   };
+
+  window.adoptResult = function(taskId, taskName) {
+    fetch('/api/save-result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Trio-Token': window.__TRIO_TOKEN || '' },
+      body: JSON.stringify({ taskId, filename: taskName }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        alert(tt('savedTo') + data.path);
+      }
+    })
+    .catch(err => console.error('save error:', err));
+  };
+
+  // ── Repo info ──
+  function loadRepoInfo() {
+    fetch('/api/repo-info', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.available) return;
+        state.repoInfo = data;
+        const el = document.getElementById('repoBadge');
+        if (el) {
+          el.textContent = data.branch + (data.clean ? '' : ' *');
+          el.style.display = 'inline-block';
+        }
+      })
+      .catch(() => {});
+  }
 
   // ── Briefing / Notification system ──
   let briefingData = null; // { html, generated }
@@ -1635,6 +1699,8 @@ ${rawOutput.slice(0, 4000)}`,
       let summaryText = '';
       if (t.status === 'error') {
         summaryText = t.error || (r?.error) || tt('failed');
+        const errSuggestion = getErrorSuggestion(summaryText);
+        if (errSuggestion) summaryText += ' — ' + errSuggestion;
       } else if (r) {
         // Extract meaningful summary from output
         const output = (r.output || '').trim();
@@ -2275,6 +2341,7 @@ ${rawOutput.slice(0, 4000)}`,
     initPromptInputs();
     loadRouting();
     checkAuthStatus();
+    loadRepoInfo();
 
     // Init workflow mode selector
     setWorkflowMode(_workflowMode);

@@ -43,8 +43,26 @@ const ALL_TASKS = {
 };
 const PHASE_ORDER = ['plan', 'execute'];
 
-// Filter tasks based on workflow settings in budget.json
-function getPhases() {
+const TEMPLATES = {
+  full: { plan: ['research', 'architecture', 'scaffold'], execute: ['implementation', 'code-review', 'documentation'] },
+  quick: { plan: ['architecture'], execute: ['implementation'] },
+  review: { plan: ['research'], execute: ['code-review'] },
+  docs: { plan: ['research'], execute: ['documentation'] },
+};
+
+// Filter tasks based on workflow settings in budget.json or template
+function getPhases(templateName) {
+  if (templateName && TEMPLATES[templateName]) {
+    const tmpl = TEMPLATES[templateName];
+    const phases = {};
+    for (const phase of PHASE_ORDER) {
+      phases[phase] = (tmpl[phase] || []).map(name => {
+        const task = ALL_TASKS[phase].find(t => t.name === name);
+        return task || { name, type: name, agent: 'claude' };
+      });
+    }
+    return phases;
+  }
   const b = readJson(path.join(TRIO_DIR, 'budget.json'));
   const wf = b?.workflow;
   if (!wf) return ALL_TASKS;
@@ -227,6 +245,17 @@ async function runWorkflow(prompt, opts = {}) {
   const state = loadState();
   const onlyPhase = opts.onlyPhase || null; // 'plan' or 'execute' or null (both)
 
+  // Collect repo context for agent prompts
+  let repoContext = '';
+  try {
+    const branch = require('child_process').execSync('git branch --show-current', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    const status = require('child_process').execSync('git status --short', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    const lastCommit = require('child_process').execSync('git log --oneline -3', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    if (branch) {
+      repoContext = `\n\n--- Repository Context ---\nBranch: ${branch}\nRecent commits:\n${lastCommit}\n${status ? `Modified files:\n${status}` : 'Working tree clean'}`;
+    }
+  } catch {}
+
   // If resuming execute phase, keep existing state
   if (onlyPhase === 'execute') {
     state.phase = 'execute';
@@ -251,7 +280,7 @@ async function runWorkflow(prompt, opts = {}) {
     }
   }
 
-  const phases = getPhases();
+  const phases = getPhases(opts.template);
 
   for (const phase of PHASE_ORDER) {
     if (shuttingDown) break;
@@ -301,14 +330,15 @@ async function runWorkflow(prompt, opts = {}) {
         : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
         : '';
       const rolePrompts = {
-        research: `You are a research analyst. DO NOT execute the task yourself. DO NOT touch files or run commands. Only ANALYZE the request and output a short brief (under 150 words):\n- What the user wants\n- What approach to take\n- Key risks or constraints\n\nUser request: "${prompt}"${langNote}`,
-        architecture: `You are an architect. DO NOT write code. Output a short plan (under 200 words): components, file structure, interactions.\n\nUser request: "${prompt}"${langNote}`,
-        scaffold: `Create the minimal project structure needed. Be concise.\n\nTask: ${prompt}${langNote}`,
-        implementation: `Write the core code. Be concise and focused.\n\nTask: ${prompt}${langNote}`,
-        'code-review': `Review the code. List max 5 issues (bugs, security, improvements). Be specific, no filler.\n\nTask: ${prompt}${langNote}`,
-        documentation: `Write a short README with usage examples. Keep it under 200 words.\n\nTask: ${prompt}${langNote}`,
+        research: `You are a research analyst preparing a brief for a development team.\n\nAnalyze this request and produce a structured brief (under 200 words):\n\n**Requirements:** What exactly does the user want?\n**Technical Approach:** What tools, libraries, or patterns are best suited?\n**Risks & Constraints:** What could go wrong? What limitations exist?\n**Key Decisions:** What choices need to be made before implementation?\n\nBe specific. Use concrete technology names, not vague descriptions.\n\nRequest: "${prompt}"${langNote}`,
+        architecture: `You are a senior software architect designing a system.\n\nProduce a clear technical plan (under 300 words):\n\n**Components:** List each component with its responsibility.\n**File Structure:** Show the directory tree with file purposes.\n**Data Flow:** How do components interact? What data passes between them?\n**Tech Stack:** Specific libraries, frameworks, patterns to use.\n\nNo boilerplate. No "it depends." Make concrete decisions.\n\nRequest: "${prompt}"${langNote}`,
+        scaffold: `You are a code generator. Create the minimal working project structure.\n\nRules:\n- Generate actual code files, not descriptions\n- Include package.json if needed\n- Include configuration files\n- Each file should have working starter code\n- Use modern patterns and best practices\n\nTask: ${prompt}${langNote}`,
+        implementation: `You are a senior developer writing production code.\n\nRules:\n- Write complete, working code — not pseudocode or outlines\n- Include error handling\n- Include TypeScript types if applicable\n- Follow the architecture from the plan phase\n- Focus on the core logic, skip boilerplate that scaffold already created\n\nTask: ${prompt}${langNote}`,
+        'code-review': `You are a code reviewer examining the implementation.\n\nReview format:\n1. **Critical Issues** — Bugs that will cause failures\n2. **Security** — Vulnerabilities, injection risks, auth gaps\n3. **Performance** — Bottlenecks, unnecessary operations\n4. **Improvements** — Better patterns, cleaner approaches\n\nFor each issue: describe the problem, show the problematic code, suggest the fix.\nMax 7 issues. Be specific, not generic.\n\nCode to review:\n${prompt}${langNote}`,
+        documentation: `You are a technical writer creating user-facing documentation.\n\nWrite a README with:\n- **What it does** (1-2 sentences)\n- **Quick Start** (3-5 steps to get running)\n- **Usage Examples** (2-3 concrete examples with code)\n- **Configuration** (if applicable)\n\nKeep it under 300 words. No filler. Every sentence should be useful.\n\nProject: ${prompt}${langNote}`,
       };
       let fullPrompt = rolePrompts[task.type] || `[${phase}/${task.name}] ${prompt}`;
+      if (repoContext) fullPrompt += repoContext;
       if (prevPhaseOutputs) {
         fullPrompt += `\n\n--- Previous phase results ---\n${prevPhaseOutputs}`;
       }
@@ -429,12 +459,12 @@ async function retryFailed() {
       : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
       : '';
     const rolePrompts = {
-      research: `You are a research analyst. DO NOT execute the task yourself. DO NOT touch files or run commands. Only ANALYZE the request and output a short brief (under 150 words):\n- What the user wants\n- What approach to take\n- Key risks or constraints\n\nUser request: "${prompt}"${langNote}`,
-      architecture: `You are an architect. DO NOT write code. Output a short plan (under 200 words): components, file structure, interactions.\n\nUser request: "${prompt}"${langNote}`,
-      scaffold: `Create the minimal project structure needed. Be concise.\n\nTask: ${prompt}${langNote}`,
-      implementation: `Write the core code. Be concise and focused.\n\nTask: ${prompt}${langNote}`,
-      'code-review': `Review the code. List max 5 issues (bugs, security, improvements). Be specific, no filler.\n\nTask: ${prompt}${langNote}`,
-      documentation: `Write a short README with usage examples. Keep it under 200 words.\n\nTask: ${prompt}${langNote}`,
+      research: `You are a research analyst preparing a brief for a development team.\n\nAnalyze this request and produce a structured brief (under 200 words):\n\n**Requirements:** What exactly does the user want?\n**Technical Approach:** What tools, libraries, or patterns are best suited?\n**Risks & Constraints:** What could go wrong? What limitations exist?\n**Key Decisions:** What choices need to be made before implementation?\n\nBe specific. Use concrete technology names, not vague descriptions.\n\nRequest: "${prompt}"${langNote}`,
+      architecture: `You are a senior software architect designing a system.\n\nProduce a clear technical plan (under 300 words):\n\n**Components:** List each component with its responsibility.\n**File Structure:** Show the directory tree with file purposes.\n**Data Flow:** How do components interact? What data passes between them?\n**Tech Stack:** Specific libraries, frameworks, patterns to use.\n\nNo boilerplate. No "it depends." Make concrete decisions.\n\nRequest: "${prompt}"${langNote}`,
+      scaffold: `You are a code generator. Create the minimal working project structure.\n\nRules:\n- Generate actual code files, not descriptions\n- Include package.json if needed\n- Include configuration files\n- Each file should have working starter code\n- Use modern patterns and best practices\n\nTask: ${prompt}${langNote}`,
+      implementation: `You are a senior developer writing production code.\n\nRules:\n- Write complete, working code — not pseudocode or outlines\n- Include error handling\n- Include TypeScript types if applicable\n- Follow the architecture from the plan phase\n- Focus on the core logic, skip boilerplate that scaffold already created\n\nTask: ${prompt}${langNote}`,
+      'code-review': `You are a code reviewer examining the implementation.\n\nReview format:\n1. **Critical Issues** — Bugs that will cause failures\n2. **Security** — Vulnerabilities, injection risks, auth gaps\n3. **Performance** — Bottlenecks, unnecessary operations\n4. **Improvements** — Better patterns, cleaner approaches\n\nFor each issue: describe the problem, show the problematic code, suggest the fix.\nMax 7 issues. Be specific, not generic.\n\nCode to review:\n${prompt}${langNote}`,
+      documentation: `You are a technical writer creating user-facing documentation.\n\nWrite a README with:\n- **What it does** (1-2 sentences)\n- **Quick Start** (3-5 steps to get running)\n- **Usage Examples** (2-3 concrete examples with code)\n- **Configuration** (if applicable)\n\nKeep it under 300 words. No filler. Every sentence should be useful.\n\nProject: ${prompt}${langNote}`,
     };
     let fullPrompt = rolePrompts[task.type] || `[${task.phase}/${task.name}] ${prompt}`;
     if (prevPhaseOutputs) {
@@ -510,14 +540,17 @@ async function main() {
     // Parse flags
     const phaseIdx = rest.indexOf('--phase');
     let onlyPhase = null;
-    const flags = ['--auto', '--phase'];
+    const flags = ['--auto', '--phase', '--template'];
     if (phaseIdx !== -1) {
       onlyPhase = rest[phaseIdx + 1] || null;
     }
+    const templateIdx = rest.indexOf('--template');
+    let template = null;
+    if (templateIdx !== -1) template = rest[templateIdx + 1];
     const promptWords = rest.filter((w, i) => !flags.includes(w) && (i === 0 || !flags.includes(rest[i - 1])));
     const prompt = promptWords.join(' ');
     if (!prompt && !onlyPhase) { log('Missing prompt'); process.exit(1); }
-    await runWorkflow(prompt || '', { onlyPhase });
+    await runWorkflow(prompt || '', { onlyPhase, template });
   } else if (command === 'retry') {
     await retryFailed();
   } else if (command === 'task') {

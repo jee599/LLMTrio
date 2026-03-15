@@ -14,13 +14,13 @@ const SESSION_TOKEN = crypto.randomBytes(16).toString('hex');
 
 
 const HOST = '127.0.0.1';
-const PORT = 3333;
+const PORT = parseInt(process.env.TRIO_PORT, 10) || 3333;
 const DEBOUNCE_MS = 100;
 const MAX_PARSE_RETRIES = 3;
 const PARSE_RETRY_MS = 100;
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const TRIO_DIR = path.join(PROJECT_ROOT, '.trio');
+const TRIO_DIR = process.env.TRIO_DIR || path.join(PROJECT_ROOT, '.trio');
 const PIDS_DIR = path.join(TRIO_DIR, 'pids');
 const RESULTS_DIR = path.join(TRIO_DIR, 'results');
 const DASHBOARD_HTML = path.join(__dirname, 'dashboard.html');
@@ -228,6 +228,10 @@ function handleRequest(req, res) {
     else if (pathname === '/api/install-cli') installCli(req, res);
     else if (pathname === '/api/cli-login') cliLogin(req, res);
     else if (pathname === '/api/run-agent') runSingleAgent(req, res);
+  } else if (req.method === 'POST' && pathname === '/api/save-result') {
+    saveResultToFile(req, res);
+  } else if (req.method === 'GET' && pathname === '/api/repo-info') {
+    serveRepoInfo(res);
   } else if (req.method === 'GET' && pathname === '/api/auth-status') {
     serveAuthStatus(res);
   } else {
@@ -411,7 +415,7 @@ function receiveCommand(req, res) {
 
       // If workflow prompt, spawn octopus-core.js
       if (cmd.type === 'prompt' && cmd.workflow) {
-        startWorkflow(cmd.content, { autoMode: cmd.autoMode });
+        startWorkflow(cmd.content, { autoMode: cmd.autoMode, template: cmd.template });
       }
       // Handle plan approval — spawn execute phase
       if (cmd.type === 'approve' && cmd.workflowApproval) {
@@ -519,6 +523,7 @@ function startWorkflow(prompt, opts = {}) {
   const args = [octopus, 'start'];
   // In approval mode: only run plan phase. In auto mode: run both.
   if (!opts.autoMode) args.push('--phase', 'plan');
+  if (opts.template) args.push('--template', opts.template);
   args.push(prompt);
   workflowProc = spawn('node', args, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -599,6 +604,62 @@ function startWorkflow(prompt, opts = {}) {
     broadcast('workflow-error', { error: err.message });
     workflowProc = null;
   });
+}
+
+// --- POST /api/save-result ---
+
+function saveResultToFile(req, res) {
+  if (!validateToken(req)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid session token' }));
+    return;
+  }
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    try {
+      const { taskId, filename } = JSON.parse(body);
+      if (!taskId || !/^task-[a-z0-9]+$/.test(taskId)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid task ID' }));
+        return;
+      }
+      const resultFile = path.join(RESULTS_DIR, `${taskId}.json`);
+      const result = parseJsonFileSync(resultFile);
+      if (!result || !result.output) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Result not found' }));
+        return;
+      }
+      const adoptedDir = path.join(TRIO_DIR, 'adopted');
+      if (!fs.existsSync(adoptedDir)) fs.mkdirSync(adoptedDir, { recursive: true });
+      const safeName = (filename || result.task || taskId).replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
+      const outPath = path.join(adoptedDir, `${safeName}.md`);
+      fs.writeFileSync(outPath, result.output, 'utf8');
+      console.log(`[dashboard-server] saved result to ${outPath}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, path: outPath }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+  });
+}
+
+// --- GET /api/repo-info ---
+
+function serveRepoInfo(res) {
+  const info = { available: false };
+  try {
+    info.branch = execSync('git branch --show-current', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    info.status = execSync('git status --porcelain', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    info.lastCommit = execSync('git log --oneline -1', { cwd: PROJECT_ROOT, stdio: 'pipe' }).toString().trim();
+    info.modifiedFiles = info.status.split('\n').filter(l => l.trim()).length;
+    info.clean = info.modifiedFiles === 0;
+    info.available = true;
+  } catch {}
+  res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(info));
 }
 
 // --- GET /api/auth-status ---

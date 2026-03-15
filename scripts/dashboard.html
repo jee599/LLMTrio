@@ -13,6 +13,7 @@
   <div class="topbar">
     <div class="topbar-title">LLMTrio</div>
     <span id="workflowPhaseBadge" style="display:none;padding:4px 12px;font-size:11px;font-weight:600;border-radius:12px;background:rgba(91,141,239,0.15);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.3);letter-spacing:0.5px;text-transform:uppercase;"></span>
+    <span id="repoBadge" style="display:none;font-size:11px;font-family:var(--font-mono);padding:3px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);"></span>
     <div class="topbar-spacer"></div>
     <select id="langSelect" onchange="setLanguage(this.value)" style="background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
       <option value="en">EN</option>
@@ -307,9 +308,17 @@
   <!-- Floating expanded prompt (overlays above bottom bar) -->
   <div id="promptExpanded" style="display:none;position:fixed;bottom:52px;left:50%;transform:translateX(-50%);width:80%;max-width:800px;z-index:90;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 -8px 40px rgba(0,0,0,0.5);backdrop-filter:blur(12px);">
     <!-- Mode selector -->
-    <div id="modeSelector" style="display:flex;gap:4px;margin-bottom:12px;background:var(--bg-primary);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content;">
-      <button id="modeApproval" onclick="setWorkflowMode('approval')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--accent-blue);color:#fff;font-weight:600;">승인 모드</button>
-      <button id="modeAuto" onclick="setWorkflowMode('auto')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:transparent;color:var(--text-muted);">자동 모드</button>
+    <div style="display:flex;gap:12px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+      <div id="modeSelector" style="display:flex;gap:4px;background:var(--bg-primary);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content;">
+        <button id="modeApproval" onclick="setWorkflowMode('approval')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--accent-blue);color:#fff;font-weight:600;">승인 모드</button>
+        <button id="modeAuto" onclick="setWorkflowMode('auto')" class="btn" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:transparent;color:var(--text-muted);">자동 모드</button>
+      </div>
+      <select id="templateSelect" style="padding:6px 12px;font-size:12px;background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:var(--font-sans);">
+        <option value="full">Full (6 tasks)</option>
+        <option value="quick">Quick (2 tasks)</option>
+        <option value="review">Review Only</option>
+        <option value="docs">Docs Only</option>
+      </select>
     </div>
     <div style="display:flex;gap:12px;align-items:flex-end;">
       <textarea id="mainPromptInput" placeholder="Describe what you want to build..."
