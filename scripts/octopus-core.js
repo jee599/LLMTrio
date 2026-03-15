@@ -117,6 +117,27 @@ function checkBudget() {
   return { ok: true };
 }
 
+// --- Prompt Builder ---
+function buildLangNote(prompt) {
+  if (/[가-힣]/.test(prompt)) return '\n\n반드시 한국어로 응답하세요.';
+  if (/[\u4e00-\u9fff]/.test(prompt)) return '\n\nPlease respond entirely in Chinese (简体中文).';
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(prompt)) return '\n\nすべて日本語で応答してください。';
+  return '';
+}
+
+function buildRolePrompt(taskType, prompt) {
+  const langNote = buildLangNote(prompt);
+  const prompts = {
+    research: `You are a research analyst preparing a brief for a development team.\n\nAnalyze this request and produce a structured brief (under 200 words):\n\n**Requirements:** What exactly does the user want?\n**Technical Approach:** What tools, libraries, or patterns are best suited?\n**Risks & Constraints:** What could go wrong? What limitations exist?\n**Key Decisions:** What choices need to be made before implementation?\n\nBe specific. Use concrete technology names, not vague descriptions.\n\nRequest: "${prompt}"${langNote}`,
+    architecture: `You are a senior software architect designing a system.\n\nProduce a clear technical plan (under 300 words):\n\n**Components:** List each component with its responsibility.\n**File Structure:** Show the directory tree with file purposes.\n**Data Flow:** How do components interact? What data passes between them?\n**Tech Stack:** Specific libraries, frameworks, patterns to use.\n\nNo boilerplate. No "it depends." Make concrete decisions.\n\nRequest: "${prompt}"${langNote}`,
+    scaffold: `You are a code generator. Create the minimal working project structure.\n\nRules:\n- Generate actual code files, not descriptions\n- Include package.json if needed\n- Include configuration files\n- Each file should have working starter code\n- Use modern patterns and best practices\n\nTask: ${prompt}${langNote}`,
+    implementation: `You are a senior developer writing production code.\n\nRules:\n- Write complete, working code — not pseudocode or outlines\n- Include error handling\n- Include TypeScript types if applicable\n- Follow the architecture from the plan phase\n- Focus on the core logic, skip boilerplate that scaffold already created\n\nTask: ${prompt}${langNote}`,
+    'code-review': `You are a code reviewer examining the implementation.\n\nReview format:\n1. **Critical Issues** — Bugs that will cause failures\n2. **Security** — Vulnerabilities, injection risks, auth gaps\n3. **Performance** — Bottlenecks, unnecessary operations\n4. **Improvements** — Better patterns, cleaner approaches\n\nFor each issue: describe the problem, show the problematic code, suggest the fix.\nMax 7 issues. Be specific, not generic.\n\nCode to review:\n${prompt}${langNote}`,
+    documentation: `You are a technical writer creating user-facing documentation.\n\nWrite a README with:\n- **What it does** (1-2 sentences)\n- **Quick Start** (3-5 steps to get running)\n- **Usage Examples** (2-3 concrete examples with code)\n- **Configuration** (if applicable)\n\nKeep it under 300 words. No filler. Every sentence should be useful.\n\nProject: ${prompt}${langNote}`,
+  };
+  return prompts[taskType] || null;
+}
+
 // --- Agent Assignment ---
 // routing.json maps task types to agents, not to specific models.
 // The file name stays as routing.json for backward compatibility.
@@ -323,21 +344,7 @@ async function runWorkflow(prompt, opts = {}) {
         saveState(state);
       };
 
-      // Build role-specific prompt with context
-      // Detect Korean input → respond in Korean
-      const langNote = /[가-힣]/.test(prompt) ? '\n\n반드시 한국어로 응답하세요.'
-        : /[\u4e00-\u9fff]/.test(prompt) ? '\n\nPlease respond entirely in Chinese (简体中文).'
-        : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
-        : '';
-      const rolePrompts = {
-        research: `You are a research analyst preparing a brief for a development team.\n\nAnalyze this request and produce a structured brief (under 200 words):\n\n**Requirements:** What exactly does the user want?\n**Technical Approach:** What tools, libraries, or patterns are best suited?\n**Risks & Constraints:** What could go wrong? What limitations exist?\n**Key Decisions:** What choices need to be made before implementation?\n\nBe specific. Use concrete technology names, not vague descriptions.\n\nRequest: "${prompt}"${langNote}`,
-        architecture: `You are a senior software architect designing a system.\n\nProduce a clear technical plan (under 300 words):\n\n**Components:** List each component with its responsibility.\n**File Structure:** Show the directory tree with file purposes.\n**Data Flow:** How do components interact? What data passes between them?\n**Tech Stack:** Specific libraries, frameworks, patterns to use.\n\nNo boilerplate. No "it depends." Make concrete decisions.\n\nRequest: "${prompt}"${langNote}`,
-        scaffold: `You are a code generator. Create the minimal working project structure.\n\nRules:\n- Generate actual code files, not descriptions\n- Include package.json if needed\n- Include configuration files\n- Each file should have working starter code\n- Use modern patterns and best practices\n\nTask: ${prompt}${langNote}`,
-        implementation: `You are a senior developer writing production code.\n\nRules:\n- Write complete, working code — not pseudocode or outlines\n- Include error handling\n- Include TypeScript types if applicable\n- Follow the architecture from the plan phase\n- Focus on the core logic, skip boilerplate that scaffold already created\n\nTask: ${prompt}${langNote}`,
-        'code-review': `You are a code reviewer examining the implementation.\n\nReview format:\n1. **Critical Issues** — Bugs that will cause failures\n2. **Security** — Vulnerabilities, injection risks, auth gaps\n3. **Performance** — Bottlenecks, unnecessary operations\n4. **Improvements** — Better patterns, cleaner approaches\n\nFor each issue: describe the problem, show the problematic code, suggest the fix.\nMax 7 issues. Be specific, not generic.\n\nCode to review:\n${prompt}${langNote}`,
-        documentation: `You are a technical writer creating user-facing documentation.\n\nWrite a README with:\n- **What it does** (1-2 sentences)\n- **Quick Start** (3-5 steps to get running)\n- **Usage Examples** (2-3 concrete examples with code)\n- **Configuration** (if applicable)\n\nKeep it under 300 words. No filler. Every sentence should be useful.\n\nProject: ${prompt}${langNote}`,
-      };
-      let fullPrompt = rolePrompts[task.type] || `[${phase}/${task.name}] ${prompt}`;
+      let fullPrompt = buildRolePrompt(task.type, prompt) || `[${phase}/${task.name}] ${prompt}`;
       if (repoContext) fullPrompt += repoContext;
       if (prevPhaseOutputs) {
         fullPrompt += `\n\n--- Previous phase results ---\n${prevPhaseOutputs}`;
@@ -453,20 +460,7 @@ async function retryFailed() {
       saveState(state);
     };
 
-    // Detect language for prompt
-    const langNote = /[가-힣]/.test(prompt) ? '\n\n반드시 한국어로 응답하세요.'
-      : /[\u4e00-\u9fff]/.test(prompt) ? '\n\nPlease respond entirely in Chinese (简体中文).'
-      : /[\u3040-\u309f\u30a0-\u30ff]/.test(prompt) ? '\n\nすべて日本語で応答してください。'
-      : '';
-    const rolePrompts = {
-      research: `You are a research analyst preparing a brief for a development team.\n\nAnalyze this request and produce a structured brief (under 200 words):\n\n**Requirements:** What exactly does the user want?\n**Technical Approach:** What tools, libraries, or patterns are best suited?\n**Risks & Constraints:** What could go wrong? What limitations exist?\n**Key Decisions:** What choices need to be made before implementation?\n\nBe specific. Use concrete technology names, not vague descriptions.\n\nRequest: "${prompt}"${langNote}`,
-      architecture: `You are a senior software architect designing a system.\n\nProduce a clear technical plan (under 300 words):\n\n**Components:** List each component with its responsibility.\n**File Structure:** Show the directory tree with file purposes.\n**Data Flow:** How do components interact? What data passes between them?\n**Tech Stack:** Specific libraries, frameworks, patterns to use.\n\nNo boilerplate. No "it depends." Make concrete decisions.\n\nRequest: "${prompt}"${langNote}`,
-      scaffold: `You are a code generator. Create the minimal working project structure.\n\nRules:\n- Generate actual code files, not descriptions\n- Include package.json if needed\n- Include configuration files\n- Each file should have working starter code\n- Use modern patterns and best practices\n\nTask: ${prompt}${langNote}`,
-      implementation: `You are a senior developer writing production code.\n\nRules:\n- Write complete, working code — not pseudocode or outlines\n- Include error handling\n- Include TypeScript types if applicable\n- Follow the architecture from the plan phase\n- Focus on the core logic, skip boilerplate that scaffold already created\n\nTask: ${prompt}${langNote}`,
-      'code-review': `You are a code reviewer examining the implementation.\n\nReview format:\n1. **Critical Issues** — Bugs that will cause failures\n2. **Security** — Vulnerabilities, injection risks, auth gaps\n3. **Performance** — Bottlenecks, unnecessary operations\n4. **Improvements** — Better patterns, cleaner approaches\n\nFor each issue: describe the problem, show the problematic code, suggest the fix.\nMax 7 issues. Be specific, not generic.\n\nCode to review:\n${prompt}${langNote}`,
-      documentation: `You are a technical writer creating user-facing documentation.\n\nWrite a README with:\n- **What it does** (1-2 sentences)\n- **Quick Start** (3-5 steps to get running)\n- **Usage Examples** (2-3 concrete examples with code)\n- **Configuration** (if applicable)\n\nKeep it under 300 words. No filler. Every sentence should be useful.\n\nProject: ${prompt}${langNote}`,
-    };
-    let fullPrompt = rolePrompts[task.type] || `[${task.phase}/${task.name}] ${prompt}`;
+    let fullPrompt = buildRolePrompt(task.type, prompt) || `[${task.phase}/${task.name}] ${prompt}`;
     if (prevPhaseOutputs) {
       fullPrompt += `\n\n--- Previous phase results ---\n${prevPhaseOutputs}`;
     }

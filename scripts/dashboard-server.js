@@ -12,6 +12,15 @@ const { checkCli: sharedCheckCli, getAuthStatus } = require('./lib/auth');
 
 const SESSION_TOKEN = crypto.randomBytes(16).toString('hex');
 
+function makeCleanEnv() {
+  const env = { ...process.env };
+  delete env.CLAUDECODE;
+  delete env.CLAUDE_CODE_ENTRYPOINT;
+  delete env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  delete env.ANTHROPIC_API_KEY;
+  return env;
+}
+
 
 const HOST = '127.0.0.1';
 const PORT = parseInt(process.env.TRIO_PORT, 10) || 3333;
@@ -265,11 +274,7 @@ function startExecutePhase() {
 
   // Collect plan outputs for context passing
   const octopus = path.join(__dirname, 'octopus-core.js');
-  const spawnEnv = { ...process.env };
-  delete spawnEnv.CLAUDECODE;
-  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
-  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
-  delete spawnEnv.ANTHROPIC_API_KEY;
+  const spawnEnv = makeCleanEnv();
 
   console.log(`[dashboard-server] starting execute phase for: ${prompt.slice(0, 60)}...`);
 
@@ -334,11 +339,7 @@ function retryFailedTasks() {
   killOldOctopusProcesses();
 
   const octopus = path.join(__dirname, 'octopus-core.js');
-  const spawnEnv = { ...process.env };
-  delete spawnEnv.CLAUDECODE;
-  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
-  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
-  delete spawnEnv.ANTHROPIC_API_KEY;
+  const spawnEnv = makeCleanEnv();
 
   console.log('[dashboard-server] retrying failed tasks');
 
@@ -511,11 +512,7 @@ function startWorkflow(prompt, opts = {}) {
   const octopus = path.join(__dirname, 'octopus-core.js');
   console.log(`[dashboard-server] starting workflow: ${prompt.slice(0, 80)}...`);
 
-  const spawnEnv = { ...process.env };
-  delete spawnEnv.CLAUDECODE;
-  delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
-  delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
-  delete spawnEnv.ANTHROPIC_API_KEY;
+  const spawnEnv = makeCleanEnv();
   // Store workflow config for resume
   _workflowPrompt = prompt;
   _workflowAutoMode = !!opts.autoMode;
@@ -939,11 +936,7 @@ function runSingleAgent(req, res) {
       }
 
       const [cmd, args] = cmdFn(prompt);
-      const spawnEnv = { ...process.env };
-      delete spawnEnv.CLAUDECODE;
-      delete spawnEnv.CLAUDE_CODE_ENTRYPOINT;
-      delete spawnEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
-      delete spawnEnv.ANTHROPIC_API_KEY;
+      const spawnEnv = makeCleanEnv();
 
       let output = '', stderr = '';
       const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: spawnEnv });

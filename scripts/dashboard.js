@@ -1,12 +1,6 @@
 (function () {
   'use strict';
 
-  // ── Pop-out mode detection ──
-  const urlParams = new URLSearchParams(window.location.search);
-  const popoutMode = urlParams.get('popout'); // 'task' | 'agent' | null
-  const popoutId = urlParams.get('id');
-  const isPopout = !!popoutMode;
-
   // ── State ──
   const state = {
     agents: {
@@ -347,7 +341,6 @@
 
   // ── Render ──
   function render() {
-    if (isPopout) return; // pop-out mode: skip main render (TODO)
     for (const agent of ['claude', 'codex', 'gemini']) {
       const a = state.agents[agent];
 
