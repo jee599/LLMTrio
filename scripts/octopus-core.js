@@ -100,7 +100,8 @@ function estimateTokens(chars) {
 
 function loadTimeout() {
   const b = readJson(path.join(TRIO_DIR, 'budget.json'));
-  return (b && b.timeout_seconds) || 120; // default 2 minutes
+  if (b && typeof b.timeout_seconds === 'number') return b.timeout_seconds; // 0 = unlimited
+  return 120; // default 2 minutes
 }
 
 // Intentionally returns {ok:true} — budget enforcement is unnecessary for
