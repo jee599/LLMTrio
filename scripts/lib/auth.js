@@ -8,7 +8,7 @@ function checkCli(cmd) {
   try {
     const p = execSync(`${WHICH_CMD} ${cmd}`, { stdio: 'pipe' }).toString().trim().split('\n')[0];
     let version = '';
-    try { version = execSync(`${cmd} --version`, { stdio: 'pipe' }).toString().trim().split('\n')[0]; } catch {}
+    try { version = execSync(`${cmd} --version`, { stdio: 'pipe', timeout: 5000 }).toString().trim().split('\n')[0]; } catch {}
     return { installed: true, path: p, version };
   } catch {
     return { installed: false };

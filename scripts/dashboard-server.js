@@ -81,12 +81,9 @@ function parseJsonFileSync(filePath) {
       lastGoodData.set(filePath, parsed);
       return parsed;
     } catch {
-      if (attempt < MAX_PARSE_RETRIES - 1) {
-        const start = Date.now();
-        while (Date.now() - start < PARSE_RETRY_MS) {
-          // busy-wait (sync context, no event loop available)
-        }
-      }
+      // Atomic write (tmp → rename) means partial reads are rare.
+      // If it fails, return cached data immediately instead of busy-waiting.
+      break;
     }
   }
   // All retries failed — return last good data or null
@@ -394,10 +391,26 @@ function retryFailedTasks() {
   });
 }
 
-function receiveCommand(req, res) {
+const MAX_BODY_BYTES = 1024 * 1024; // 1MB
+
+function readBody(req, res, callback) {
   let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  let size = 0;
+  req.on('data', chunk => {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) {
+      res.writeHead(413, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Request body too large' }));
+      req.destroy();
+      return;
+    }
+    body += chunk;
+  });
+  req.on('end', () => { if (!req.destroyed) callback(body); });
+}
+
+function receiveCommand(req, res) {
+  readBody(req, res, (body) => {
     try {
       const cmd = JSON.parse(body);
       if (!cmd.type || !VALID_TYPES.includes(cmd.type)) {
@@ -610,9 +623,7 @@ function saveResultToFile(req, res) {
     res.end(JSON.stringify({ error: 'Invalid session token' }));
     return;
   }
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  readBody(req, res, (body) => {
     try {
       const { taskId, filename } = JSON.parse(body);
       if (!taskId || !/^task-[a-z0-9]+$/.test(taskId)) {
@@ -631,7 +642,9 @@ function saveResultToFile(req, res) {
       if (!fs.existsSync(adoptedDir)) fs.mkdirSync(adoptedDir, { recursive: true });
       const safeName = (filename || result.task || taskId).replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
       const outPath = path.join(adoptedDir, `${safeName}.md`);
-      fs.writeFileSync(outPath, result.output, 'utf8');
+      const tmpPath = outPath + '.tmp';
+      fs.writeFileSync(tmpPath, result.output, 'utf8');
+      fs.renameSync(tmpPath, outPath);
       console.log(`[dashboard-server] saved result to ${outPath}`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, path: outPath }));
@@ -680,9 +693,7 @@ function serveAuthStatus(res) {
 // --- POST /api/save-key ---
 
 function saveApiKey(req, res) {
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  readBody(req, res, (body) => {
     try {
       const { provider, key } = JSON.parse(body);
       const validProviders = {
@@ -728,9 +739,7 @@ const INSTALL_PACKAGES = {
 };
 
 function installCli(req, res) {
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  readBody(req, res, (body) => {
     try {
       if (!body) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'Empty request body' })); return; }
       const { provider } = JSON.parse(body);
@@ -774,9 +783,7 @@ const LOGIN_CLI = {
 };
 
 function cliLogin(req, res) {
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  readBody(req, res, (body) => {
     try {
       const { provider } = JSON.parse(body);
       const cliCmd = LOGIN_CLI[provider];
@@ -923,9 +930,7 @@ const AGENT_CMDS = {
 };
 
 function runSingleAgent(req, res) {
-  let body = '';
-  req.on('data', chunk => { body += chunk; });
-  req.on('end', () => {
+  readBody(req, res, (body) => {
     try {
       const { agent, prompt, timeout } = JSON.parse(body);
       const cmdFn = AGENT_CMDS[agent];
@@ -941,10 +946,13 @@ function runSingleAgent(req, res) {
       let output = '', stderr = '';
       const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: spawnEnv });
 
-      const timeoutMs = (timeout || 60) * 1000;
-      const timer = setTimeout(() => {
-        try { proc.kill('SIGTERM'); } catch {}
-      }, timeoutMs);
+      const timeoutSec = typeof timeout === 'number' ? timeout : 60;
+      let timer = null;
+      if (timeoutSec > 0) {
+        timer = setTimeout(() => {
+          try { proc.kill('SIGTERM'); } catch {}
+        }, timeoutSec * 1000);
+      }
 
       proc.stdout.on('data', d => { output += d.toString(); });
       proc.stderr.on('data', d => { stderr += d.toString(); });

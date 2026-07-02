@@ -2,3 +2,4 @@
 node_modules/
 *.pid
 docs/
+.DS_Store

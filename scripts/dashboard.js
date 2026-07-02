@@ -1904,7 +1904,7 @@ ${rawOutput.slice(0, 4000)}`,
         'code-review': $('wfExecReview').checked,
         documentation: $('wfExecDocs').checked,
       },
-      timeout_seconds: parseInt($('wfTimeout').value) || 45,
+      timeout_seconds: Number.isFinite(parseInt($('wfTimeout').value)) ? parseInt($('wfTimeout').value) : 45,
     };
     // Save to server via budget endpoint (reuse)
     fetch('/api/command', {
@@ -1934,7 +1934,7 @@ ${rawOutput.slice(0, 4000)}`,
         if ($('wfExecReview')) $('wfExecReview').checked = saved.execute['code-review'] !== false;
         if ($('wfExecDocs')) $('wfExecDocs').checked = saved.execute.documentation !== false;
       }
-      if (saved.timeout_seconds && $('wfTimeout')) $('wfTimeout').value = saved.timeout_seconds;
+      if (saved.timeout_seconds != null && $('wfTimeout')) $('wfTimeout').value = saved.timeout_seconds;
     }
   } catch {}
 

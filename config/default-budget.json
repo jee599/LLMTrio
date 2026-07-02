@@ -2,5 +2,18 @@
   "session_limit": 5.0,
   "daily_limit": 20.0,
   "opus_call_limit": 50,
-  "warn_at": 0.8
+  "warn_at": 0.8,
+  "timeout_seconds": 120,
+  "workflow": {
+    "plan": {
+      "research": false,
+      "architecture": true,
+      "scaffold": true
+    },
+    "execute": {
+      "implementation": true,
+      "code-review": true,
+      "documentation": true
+    }
+  }
 }

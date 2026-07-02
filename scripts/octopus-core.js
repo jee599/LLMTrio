@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const TRIO_DIR = path.join(PROJECT_ROOT, '.trio');
+const TRIO_DIR = process.env.TRIO_DIR || path.join(PROJECT_ROOT, '.trio');
 
 // Load API keys from .trio/.env
 try {
@@ -33,7 +33,7 @@ const ALL_TASKS = {
   plan: [
     { name: 'research', type: 'research', agent: 'gemini' },
     { name: 'architecture', type: 'architecture', agent: 'claude' },
-    { name: 'scaffold', type: 'implementation', agent: 'codex' },
+    { name: 'scaffold', type: 'scaffold', agent: 'codex' },
   ],
   execute: [
     { name: 'implementation', type: 'implementation', agent: 'codex' },
